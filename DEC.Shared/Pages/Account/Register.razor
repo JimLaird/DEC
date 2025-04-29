@@ -1,0 +1,95 @@
+﻿@page "/register"
+
+@inject NavigationManager NavManager
+@inject IAccountManagement Acct
+
+<PageTitle>Register</PageTitle>
+
+<FluentStack Orientation="Orientation.Vertical">
+    <h1>Create Account</h1>
+
+    @if (errorList.Length > 0)
+    {
+        <FluentMessageBar Intent="@MessageIntent.Error">
+            <div>
+                @foreach (var error in errorList)
+                {
+                    <div>@error</div>
+                }
+            </div>
+        </FluentMessageBar>
+    }
+
+    <EditForm Model="@signUpModel" OnValidSubmit="SignUp" FormName="signup_form">
+        <DataAnnotationsValidator />
+        <FluentValidationSummary />
+
+        <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px">
+            <div>
+                <FluentTextField Name="username" @bind-Value="@signUpModel.UserName" Label="Display Name" Required="true" TextFieldType="TextFieldType.Text" />
+                <FluentValidationMessage For="@(() => signUpModel.UserName)" />
+            </div>
+            <div>
+                <FluentTextField Name="email" @bind-Value="@signUpModel.Email" Label="Email" Required="true" TextFieldType="TextFieldType.Email" />
+                <FluentValidationMessage For="@(() => signUpModel.Email)" />
+            </div>
+            <div>
+                <FluentTextField Name="password" @bind-Value="@signUpModel.Password" Label="Password" Required="true" TextFieldType="TextFieldType.Password" />
+                <FluentValidationMessage For="@(() => signUpModel.Password)" />
+            </div>
+            <div class="text-end">
+                <FluentNavLink NavigateTo="/login" Style="margin-right: 8px">
+                    Already have an account?
+                </FluentNavLink>
+            </div>
+            <FluentButton Type="ButtonType.Submit" Appearance="Appearance.Accent" Disabled="@isRegistering">
+                @if (isRegistering)
+                {
+                    <FluentProgressRing></FluentProgressRing>
+                    <span>Creating Account...</span>
+                }
+                else
+                {
+                    <span>Create Account</span>
+                }
+
+            </FluentButton>
+        </FluentStack>
+    </EditForm>
+</FluentStack>
+
+
+
+
+@code {
+    SignUp signUpModel = new();
+    private string[] errorList = [];
+    private bool isRegistering = false;
+
+    private async void SignUp()
+    {
+        try
+        {
+            isRegistering = true;
+
+            var result = await Acct.RegisterAsync(signUpModel.Email, signUpModel.Password, signUpModel.UserName);
+
+            if (result.Succeeded)
+            {
+                NavManager.NavigateTo("/login");
+            }
+            else
+            {
+                errorList = result.ErrorList;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorList = new[] { $"An error occurred: {ex.Message}" };
+        }
+        finally
+        {
+            isRegistering = false;
+        }
+    }
+}

@@ -1,0 +1,90 @@
+﻿@page "/login"
+
+@inject IAccountManagement Acct
+@inject NavigationManager NavManager
+
+
+<PageTitle>Sign In</PageTitle>
+<FluentStack Orientation="Orientation.Vertical">
+    <h1>Sign In</h1>
+
+    @if (errorList.Length > 0)
+    {
+        <FluentMessageBar Intent="@MessageIntent.Error">
+            <div>
+                @foreach (var error in errorList)
+                {
+                    <div>@error</div>
+                }
+            </div>
+        </FluentMessageBar>
+    }
+
+    <EditForm Model="@signInModel" OnValidSubmit="DoLoginAsync" FormName="signin_form">
+        <DataAnnotationsValidator />
+        <FluentValidationSummary />
+
+        <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px">
+            <div>
+                <FluentTextField Name="email" @bind-Value="@signInModel.Email" Label="Email" TextFieldType="TextFieldType.Email" />
+                <FluentValidationMessage For="@(() => signInModel.Email)" />
+            </div>
+
+            <div>
+                <FluentTextField Name="password" @bind-Value="@signInModel.Password" Label="Password" TextFieldType="TextFieldType.Password" />
+                <FluentValidationMessage For="@(() => signInModel.Password)" />
+            </div>
+
+            <div class="text-end">
+                <FluentNavLink NavigateTo="/register" Style="margin-right: 8px">
+                    Don't have an account?
+                </FluentNavLink>
+            </div>
+
+            <FluentButton Type="ButtonType.Submit" Appearance="Appearance.Accent" Disabled="@isSigningIn">
+                @if (isSigningIn)
+                {
+                    <FluentProgressRing></FluentProgressRing>
+                    <span>Signing In...</span>
+                }
+                else
+                {
+                    <span>Sign In</span>
+                }
+            </FluentButton>
+        </FluentStack>
+    </EditForm>
+</FluentStack>
+
+
+@code {
+    private string[] errorList = [];
+    SignIn signInModel = new();
+    private bool isSigningIn = false;
+
+    public async Task DoLoginAsync()
+    {
+        try
+        {
+            var result = await Acct.LoginAsync(signInModel.Email, signInModel.Password);
+
+            if (result.Succeeded)
+            {
+                NavManager.NavigateTo("/");
+            }
+            else
+            {
+                errorList = result.ErrorList;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorList = new[] { ex.Message };
+        }
+        finally
+        {
+            isSigningIn = false;
+        }
+
+    }
+}
