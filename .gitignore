@@ -361,3 +361,5 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/DEC/Resources/decouriers-6eeae-firebase-adminsdk-fbsvc-8d402d76f6.json
+/DEC/Constants.cs
