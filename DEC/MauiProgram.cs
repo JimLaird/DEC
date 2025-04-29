@@ -33,6 +33,8 @@ namespace DEC
 
             builder.Services.AddMauiBlazorWebView();
             builder.Services.AddFluentUIComponents();
+            builder.Services.AddBlazoredLocalStorage();
+            builder.Services.AddAuthorizationCore();
 
             // Add Firebase Auth configuration
             var config = new FirebaseAuthConfig
