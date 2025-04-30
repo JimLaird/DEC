@@ -363,3 +363,5 @@ MigrationBackup/
 FodyWeavers.xsd
 /DEC/Resources/decouriers-6eeae-firebase-adminsdk-fbsvc-8d402d76f6.json
 /DEC/Constants.cs
+/DEC/Resources/Raw/decouriers-6eeae-firebase-adminsdk-fbsvc-8d402d76f6.json
+/DEC/Resources/Raw/firebase-adminsdk.json
