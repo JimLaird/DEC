@@ -1,0 +1,24 @@
+﻿@page "/"
+
+@inject IAccountManagement Acct
+@inject NavigationManager NavManager
+
+
+<h3>AppLaunch</h3>
+Loading...
+
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (await Acct.CheckAuthenticatedAsync())
+        {
+            NavManager.NavigateTo("/dashboard");
+        }
+        else
+        {
+            NavManager.NavigateTo("/login");
+        }
+    }
+    
+}

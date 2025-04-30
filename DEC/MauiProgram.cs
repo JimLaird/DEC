@@ -12,6 +12,7 @@ using Microsoft.FluentUI.AspNetCore.Components.Icons;
 using DEC.Services;
 using DEC.Shared.Services;
 using DEC.Shared.Models;
+using DEC.Shared.CustomAuth;
 
 
 namespace DEC
@@ -34,6 +35,8 @@ namespace DEC
             builder.Services.AddMauiBlazorWebView();
             builder.Services.AddFluentUIComponents();
             builder.Services.AddBlazoredLocalStorage();
+            builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthenticationStateProvider>();
+            builder.Services.AddScoped(sp => (IAccountManagement)sp.GetRequiredService<AuthenticationStateProvider>());
             builder.Services.AddAuthorizationCore();
 
             // Add Firebase Auth configuration

@@ -38,9 +38,7 @@
                 <FluentValidationMessage For="@(() => signUpModel.Password)" />
             </div>
             <div class="text-end">
-                <FluentNavLink NavigateTo="/login" Style="margin-right: 8px">
-                    Already have an account?
-                </FluentNavLink>
+                <a href="/login">Have an account? - Sign In</a>
             </div>
             <FluentButton Type="ButtonType.Submit" Appearance="Appearance.Accent" Disabled="@isRegistering">
                 @if (isRegistering)

@@ -1,0 +1,42 @@
+﻿@page "/logout"
+
+@inject IAccountManagement Acct
+@inject NavigationManager NavManager
+
+<PageTitle>Sign Out</PageTitle>
+
+<h1>Sign Out</h1>
+<AuthorizeView>
+    <Authorized>
+        <FluentMessageBar Intent="@MessageIntent.Info">
+            <div>
+                <FluentText>Logging out...</FluentText>
+            </div>
+        </FluentMessageBar>
+    </Authorized>
+    <NotAuthorized>
+        <FluentMessageBar Intent="@MessageIntent.Info">
+            <div>
+                <FluentNavLink Href="/login">You are Logged Out, CLick Here to Sign In</FluentNavLink>
+            </div>
+        </FluentMessageBar>
+    </NotAuthorized>
+</AuthorizeView>
+
+
+@code {
+    private AuthorizeView? authView;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await Acct.CheckAuthenticatedAsync())
+        {
+            await Acct.LogoutAsync();
+            NavManager.NavigateTo("/login");
+        }
+        else
+        {
+            NavManager.NavigateTo("/login");
+        }
+    }
+}
