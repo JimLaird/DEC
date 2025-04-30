@@ -66,10 +66,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <MauiAsset Include="Resources\decouriers-6eeae-firebase-adminsdk-fbsvc-8d402d76f6.json" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.60" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebView.Maui" Version="9.0.60" />
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.4" />

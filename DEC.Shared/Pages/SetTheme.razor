@@ -1,0 +1,115 @@
+﻿@page "/settheme"
+
+<PageTitle>Set App Theme</PageTitle>
+
+<FluentDesignTheme @bind-Mode="@Mode"
+                   @bind-OfficeColor="@OfficeColor"
+                   OnLoaded="@OnLoaded"
+                   OnLuminanceChanged="@OnLuminanceChanged"
+                   StorageName="theme">
+</FluentDesignTheme>
+
+<h1>Set App Theme</h1>
+
+<div style="min-height: 250px;">
+    <FluentGrid>
+        <FluentGridItem>
+            <FluentSelect Label="Theme"
+                          Width="250px"
+                          Items="@(Enum.GetValues<DesignThemeModes>())"
+                          @bind-SelectedOption="@Mode" />
+        </FluentGridItem>
+
+        <FluentGridItem>
+            <FluentSelect Label="Color"
+                          Items="@(Enum.GetValues<OfficeColor>().Select(i => (OfficeColor?)i))"
+                          Height="200px"
+                          Width="250px"
+                          @bind-SelectedOption="@OfficeColor">
+                <OptionTemplate>
+                    <FluentStack>
+                        <div style="width: 20px; height: 20px; border-radius: 4px; background-color: @GetColorHex(context);"></div>
+                        <FluentLabel>@context</FluentLabel>
+                    </FluentStack>
+                </OptionTemplate>
+            </FluentSelect>
+            <FluentButton Appearance="Appearance.Accent" OnClick="PickRandomColor">Feeling lucky?</FluentButton>
+        </FluentGridItem>
+    </FluentGrid>
+
+    <FluentStack Style="margin: 30px 0px; padding: 30px; border: 1px solid var(--accent-fill-rest);">
+        <FluentIcon Value="@(new Icons.Regular.Size24.Airplane())" />
+        <FluentLabel>Example of content</FluentLabel>
+        <FluentButton Appearance="Appearance.Outline">Outline button</FluentButton>
+        <FluentButton Appearance="Appearance.Accent">Accent button</FluentButton>
+    </FluentStack>
+</div>
+
+@code {
+    public DesignThemeModes Mode { get; set; }
+    public OfficeColor? OfficeColor { get; set; }
+
+    void OnLoaded(LoadedEventArgs e)
+    {
+        Console.WriteLine($"Loaded: {(e.Mode == DesignThemeModes.System ? "System" : "")} {(e.IsDark ? "Dark" : "Light")}");
+    }
+
+    void OnLuminanceChanged(LuminanceChangedEventArgs e)
+    {
+        Console.WriteLine($"Changed: {(e.Mode == DesignThemeModes.System ? "System" : "")} {(e.IsDark ? "Dark" : "Light")}");
+    }
+
+    void PickRandomColor()
+    {
+        OfficeColor = OfficeColorUtilities.GetRandom();
+    }
+
+    private string GetColorHex(OfficeColor? color)
+    {
+        if (color == null)
+            return "#0078d4"; // Default blue
+
+        return color.ToString().ToLowerInvariant() switch
+        {
+            // Microsoft 365 and Office applications
+            "default" => "#0078D4",     // Microsoft Blue
+            "access" => "#A4373A",      // Access Red
+            "booking" => "#00AD56",     // Booking Green
+            "exchange" => "#0078D4",    // Exchange Blue
+            "excel" => "#107C41",       // Excel Green
+            "groupme" => "#00AFF0",     // GroupMe Blue
+            "office" => "#D83B01",      // Office Orange
+            "onedrive" => "#0078D4",    // OneDrive Blue
+            "onenote" => "#7719AA",     // OneNote Purple
+            "outlook" => "#0078D4",     // Outlook Blue
+            "planner" => "#31752F",     // Planner Green
+            "powerapps" => "#742774",   // PowerApps Purple
+            "powerbi" => "#F2C811",     // Power BI Yellow
+            "powerpoint" => "#D24726",  // PowerPoint Orange/Red
+            "project" => "#217346",     // Project Green
+            "publisher" => "#077568",   // Publisher Teal
+            "sharepoint" => "#0078D4",  // SharePoint Blue
+            "skype" => "#00AFF0",       // Skype Blue
+            "stream" => "#BC1948",      // Stream Red
+            "sway" => "#008272",        // Sway Teal
+            "teams" => "#6264A7",       // Teams Purple
+            "visio" => "#3955A3",       // Visio Blue
+            "windows" => "#0078D7",     // Windows Blue
+            "word" => "#185ABD",        // Word Blue
+            "yammer" => "#0072C6",      // Yammer Blue
+
+            // Additional common colors
+            "red" => "#D13438",
+            "orange" => "#CA5010",
+            "yellow" => "#FFB900",
+            "green" => "#107C10",
+            "teal" => "#008272",
+            "blue" => "#0078D4",
+            "purple" => "#5C2D91",
+            "magenta" => "#B4009E",
+            "neutral" => "#737373",
+
+            _ => "#0078D4" // Default Microsoft Blue for any unknown value
+        };
+    }
+}

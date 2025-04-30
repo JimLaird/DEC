@@ -1,0 +1,154 @@
+﻿@page "/users"
+
+@inject NavigationManager NavManager
+@inject IDialogService DialogService
+
+<PageTitle>User List</PageTitle>
+
+<h1>User List</h1>
+
+<div>
+
+    <FluentDataGrid Items="@userList" Pagination="@pagination" MultiLine >
+        <PropertyColumn Property="@(p => p.DisplayName)" Sortable="true" Title="User" />
+        <TemplateColumn Title="Roles">
+            <FluentStack Orientation="Orientation.Horizontal">
+                @if (context.Roles != null && context.Roles.Count > 0)
+                {
+                    <ul>
+                        @foreach (var role in context.Roles)
+                        {
+                            <li>
+                                <strong>@role</strong>
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <strong>-----</strong>
+                }
+            </FluentStack>
+        </TemplateColumn>
+        <TemplateColumn Title="Actions">
+            <FluentIcon Value="@(new Icons.Regular.Size20.Edit())" Color="Color.Accent" OnClick="@(() => EditUser(context))" />
+            <span>&nbsp;&nbsp;</span>
+            <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Color="Color.Warning" OnClick="@(() => DeleteUser(context))"/>
+        </TemplateColumn>
+    </FluentDataGrid>
+    <FluentPaginator State="@pagination" />
+</div>
+
+@code {
+    PaginationState pagination = new PaginationState()
+        {
+            ItemsPerPage = 5,
+        };
+
+
+    private IQueryable<Info> userList;
+
+    Dictionary<string, string> keyMap = new Dictionary<string, string>
+    {
+        {"IsAdmin", "Admin"},
+        {"IsUser", "User"}
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUserDataAsync();
+    }
+
+    private async Task LoadUserDataAsync()
+    {
+        try
+        {
+            var userInfoList = new List<Info>();
+            var pagedEnumerable = FirebaseAuth.DefaultInstance.ListUsersAsync(null);
+            var responses = pagedEnumerable.AsRawResponses().GetAsyncEnumerator();
+
+            while (await responses.MoveNextAsync())
+            {
+                var response = responses.Current;
+                foreach (var user in response.Users)
+                {
+                    Info userModel = new()
+                        {
+                            Uid = user.Uid,
+                            Email = user.Email,
+                            DisplayName = user.DisplayName,
+                            IsEmailVerified = user.EmailVerified,
+                            Roles = user.CustomClaims.Where(x => (bool)x.Value).ToList().Select(s => keyMap[s.Key]).ToList()
+                        };
+                    userInfoList.Add(userModel);
+                }
+                userList = userInfoList.ToList().AsQueryable();
+            };
+        }
+        catch (Exception ex)
+        {
+
+        }
+    }
+
+    void EditUser(Info p)
+    {
+        NavManager.NavigateTo($"editupdateuser/{p.Uid}");
+    }
+
+    async Task DeleteUser(Info p)
+    {
+        // Create a dialog component
+        RenderFragment dialogContent = builder =>
+        {
+            builder.OpenElement(0, "div");
+            builder.AddAttribute(1, "style", "min-height: 6rem; padding: 1rem;");
+
+            builder.OpenElement(2, "div");
+            builder.AddAttribute(3, "style", "margin-bottom: 1rem;");
+            builder.AddContent(4, $"Are you sure you want to delete user '{p.DisplayName}'?");
+            builder.CloseElement();
+
+            builder.OpenElement(5, "div");
+            builder.AddAttribute(6, "style", "color: var(--neutral-foreground-hint);");
+            builder.AddContent(7, "This action cannot be undone.");
+            builder.CloseElement();
+
+            builder.CloseElement();
+        };
+
+        // Show the dialog using the correct DialogService method
+        var dialog = await DialogService.ShowDialogAsync(
+            dialogContent,
+            new DialogParameters
+                {
+                    Title = "Confirm Delete",
+                    Width = "400px",
+                    PrimaryAction = "Delete",
+                    SecondaryAction = "Cancel",
+                    TrapFocus = true,
+                    PreventDismissOnOverlayClick = true,
+                    PreventScroll = true,
+                    Modal = true
+                });
+        
+        var result = await dialog.Result;
+        if (result == null || result.Cancelled)
+            return;
+
+        try
+        {
+            // Delete the user from Firebase
+            await FirebaseAuth.DefaultInstance.DeleteUserAsync(p.Uid);
+
+            // Refresh the user list
+            await LoadUserDataAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting user: {ex.Message}");
+        }
+    }
+
+
+}

@@ -13,6 +13,7 @@ using DEC.Services;
 using DEC.Shared.Services;
 using DEC.Shared.Models;
 using DEC.Shared.CustomAuth;
+using Google.Apis.Auth.OAuth2;
 
 
 namespace DEC
@@ -49,6 +50,13 @@ namespace DEC
                     new EmailProvider()
                 }
             };
+
+            using var stream = FileSystem.OpenAppPackageFileAsync(Constants.GoogleServiceAccount).Result;
+            using var reader = new StreamReader(stream);
+            FirebaseApp.Create(new AppOptions()
+            {
+                Credential = GoogleCredential.FromJson(reader.ReadToEnd())
+            });
 
             // Register FirebaseAuthClient
             builder.Services.AddSingleton(new FirebaseAuthClient(config));

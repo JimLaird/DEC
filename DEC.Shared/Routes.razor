@@ -1,6 +1,15 @@
-﻿<Router AppAssembly="typeof(Layout.MainLayout).Assembly">
+﻿<CascadingAuthenticationState>
+<Router AppAssembly="typeof(Layout.MainLayout).Assembly">
     <Found Context="routeData">
         <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
+    <NotFound>
+        <PageTitle>Not Found</PageTitle>
+        <LayoutView Layout="typeof(Layout.MainLayout)">
+            <h1>Sorry, there's nothing at this address.</h1>
+            <p>Click <FluentNavLink Href="/">here</FluentNavLink> to go back to the home page.</p>
+        </LayoutView>
+    </NotFound>
 </Router>
+</CascadingAuthenticationState>

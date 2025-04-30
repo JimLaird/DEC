@@ -1,0 +1,220 @@
+﻿@page "/editupdateuser"
+@page "/editupdateuser/{uid}"
+
+@inject NavigationManager NavManager
+@inject IMessageService MessageService
+
+<FluentStack Orientation="Orientation.Vertical">
+    <h1>Edit/Update User</h1>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <FluentMessageBar Intent="MessageIntent.Error" @bind-Open="@isErrorVisible">
+            @errorMessage
+        </FluentMessageBar>
+    }
+
+    <EditForm Model="@userModel" OnValidSubmit="UpdateUser">
+        <DataAnnotationsValidator />
+        <FluentValidationSummary />
+
+        <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px">
+            <div>
+                <FluentTextField Name="username" @bind-Value="@userModel.DisplayName" Label="Display Name" Required="true" TextFieldType="TextFieldType.Text" />
+                <FluentValidationMessage For="@(() => userModel.DisplayName)" />
+            </div>
+            <div>
+                <FluentTextField Name="email" @bind-Value="@userModel.Email" Label="Email" Required="true" TextFieldType="TextFieldType.Email" />
+                <FluentValidationMessage For="@(() => userModel.Email)" />
+            </div>
+            <div>
+                <FluentTextField Name="phoneNumber" @bind-Value="@userModel.PhoneNumber" Label="Phone Number" TextFieldType="TextFieldType.Text" />
+                <FluentValidationMessage For="@(() => userModel.PhoneNumber)" />
+            </div>
+            <div>
+                @* <FluentSelect Label="Roles" @bind-SelectedOption="@SelectedRoles" Multiple="true">
+                    @foreach (var role in availableRoles)
+                    {
+                        <FluentOption Value="@role.Name">@role.Name</FluentOption>
+                    }
+                </FluentSelect> *@
+                <InputSelect @bind-Value="@SelectedRoles" Multiple="true" class="form-select">
+                    @foreach (var role in availableRoles)
+                    {
+                        <option value="@role.Name">@role.Name</option>
+                    }
+                </InputSelect>
+            </div>
+            <FluentButton Type="ButtonType.Submit" Appearance="Appearance.Accent" Disabled="@isUpdating">
+                @if (isUpdating)
+                {
+                    <FluentProgressRing />
+                    <span style="margin-left: 8px;">Updating User...</span>
+                }
+                else
+                {
+                    <span>Update User</span>
+                }
+            </FluentButton>
+        </FluentStack>
+    </EditForm>
+
+</FluentStack>
+
+@code {
+    [Parameter]
+    public string uid { get; set; }
+
+    public Info userModel { get; set; } = new Info();
+    private List<Role> availableRoles = new List<Role>();
+    private string[] SelectedRoles = new string[] { };
+    private bool isUpdating = false;
+    private bool isErrorVisible = false;
+    private string errorMessage = string.Empty;
+
+    Dictionary<string, string> keyMap = new Dictionary<string, string>
+    {
+        {"IsAdmin", "Admin"},
+        {"IsUser", "User"}
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Get available roles first
+            availableRoles = GetRoles();
+
+            if (!string.IsNullOrEmpty(uid))
+            {
+                var user = await FirebaseAuth.DefaultInstance.GetUserAsync(uid);
+
+                userModel.Uid = user.Uid;
+                userModel.DisplayName = user.DisplayName;
+                userModel.Email = user.Email;
+                userModel.IsEmailVerified = user.EmailVerified;
+                userModel.PhoneNumber = user.PhoneNumber;
+
+                // Map Firebase custom claims to role names using keyMap
+                var userRoles = user.CustomClaims
+                    .Where(x => x.Value is bool && (bool)x.Value)
+                    .Select(s => keyMap.ContainsKey(s.Key) ? keyMap[s.Key] : s.Key)
+                    .ToList();
+
+                SelectedRoles = userRoles.ToArray();
+                Console.WriteLine($"Loaded user: {userModel.DisplayName} with roles: {string.Join(", ", SelectedRoles)}");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error loading user: {ex.Message}";
+            isErrorVisible = true;
+            Console.WriteLine(errorMessage);
+        }
+    }
+
+    private List<Role> GetRoles()
+    {
+        return new List<Role>
+        {
+            new Role { Id="id-1", Name = "Admin" },
+            new Role { Id="id-2", Name = "User" },
+        };
+    }
+
+    private async Task UpdateUser()
+    {
+        try
+        {
+            // Validation
+            if (string.IsNullOrWhiteSpace(userModel.DisplayName))
+            {
+                // You can add a FluentMessageBar or toast notification here
+                Console.WriteLine("Display name is required");
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(userModel.Email))
+            {
+                Console.WriteLine("Email is required");
+                return;
+            }
+
+            // Handle update logic
+            if (string.IsNullOrWhiteSpace(uid))
+            {
+                Console.WriteLine("Cannot update user: Missing UID");
+                return;
+            }
+            else
+            {
+                Console.WriteLine($"Updating user: {userModel.DisplayName} ({uid})");
+                Console.WriteLine($"Selected roles: {string.Join(", ", SelectedRoles)}");
+
+                // Update user basic info
+                var updateUser = new UserRecordArgs
+                    {
+                        Uid = uid,
+                        Email = userModel.Email,
+                        DisplayName = userModel.DisplayName,
+                        PhoneNumber = userModel.PhoneNumber,
+                    };
+
+                // Update user in Firebase
+                var response = await FirebaseAuth.DefaultInstance.UpdateUserAsync(updateUser);
+
+                if (!string.IsNullOrWhiteSpace(response.Uid))
+                {
+                    // Clear existing roles first to ensure we start fresh
+                    var newClaims = new Dictionary<string, object>();
+
+                    // Set IsAdmin = false and IsUser = false as default
+                    newClaims["IsAdmin"] = false;
+                    newClaims["IsUser"] = false;
+
+                    // Now set selected roles to true
+                    foreach (var role in SelectedRoles)
+                    {
+                        var claimKey = role switch
+                        {
+                            "Admin" => "IsAdmin",
+                            "User" => "IsUser",
+                            _ => throw new ArgumentException($"Unknown Role: {role}"),
+                        };
+                        newClaims[claimKey] = true;
+                    }
+
+                    // Log the claims we're setting
+                    Console.WriteLine($"Setting claims: {string.Join(", ", newClaims.Select(c => $"{c.Key}={c.Value}"))}");
+
+                    // Update the user's custom claims
+                    await FirebaseAuth.DefaultInstance.SetCustomUserClaimsAsync(response.Uid, newClaims);
+
+                    // Verify the update was successful by fetching the user again
+                    var updatedUser = await FirebaseAuth.DefaultInstance.GetUserAsync(uid);
+                    var updatedRoles = updatedUser.CustomClaims
+                        .Where(x => x.Value is bool && (bool)x.Value)
+                        .Select(s => keyMap.ContainsKey(s.Key) ? keyMap[s.Key] : s.Key)
+                        .ToList();
+
+                    Console.WriteLine($"User updated successfully. Roles after update: {string.Join(", ", updatedRoles)}");
+
+                    // Navigate back to users list
+                    NavManager.NavigateTo("/users");
+                }
+                else
+                {
+                    Console.WriteLine("Update failed: No valid response from Firebase");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating user: {ex.Message}");
+            // You can add UI notification here
+        }
+    }
+
+
+    
+}
