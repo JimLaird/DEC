@@ -1,5 +1,7 @@
 ﻿@page "/settheme"
 
+@attribute [Authorize]
+
 <PageTitle>Set App Theme</PageTitle>
 
 <FluentDesignTheme @bind-Mode="@Mode"

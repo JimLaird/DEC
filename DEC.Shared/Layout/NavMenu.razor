@@ -4,12 +4,15 @@
     <nav class="sitenav" aria-labelledby="main-menu">
         <FluentNavMenu Id="main-menu" Collapsible="true" Width="250" Title="Navigation menu" @bind-Expanded="expanded" CustomToggle="true">
             <FluentNavLink Href="/" Match="NavLinkMatch.All" Icon="@(new Icons.Regular.Size20.Home())" IconColor="Color.Accent">Home</FluentNavLink>
-            <FluentNavLink Href="weather" Icon="@(new Icons.Regular.Size20.WeatherPartlyCloudyDay())" IconColor="Color.Accent">Weather</FluentNavLink>
-            <FluentNavLink Href="users" Icon="@(new Icons.Regular.Size20.People())" IconColor="Color.Accent">User List</FluentNavLink>
-            <FluentNavLink Href="settheme" Icon="@(new Icons.Regular.Size20.ContentSettings())" IconColor="Color.Accent">Set App Theme</FluentNavLink>
-            <FluentDivider></FluentDivider>
-            @* <FluentNavLink Href="login" Icon="@(new Icons.Regular.Size20.DoorArrowLeft())" IconColor="Color.Accent">Sign In</FluentNavLink> *@
-            <FluentNavLink Href="logout" Icon="@(new Icons.Regular.Size20.SignOut())" IconColor="Color.Accent">Sign Out</FluentNavLink>
+            <AuthorizeView>
+                <Authorized>            
+                    <FluentNavLink Href="weather" Icon="@(new Icons.Regular.Size20.WeatherPartlyCloudyDay())" IconColor="Color.Accent">Weather</FluentNavLink>
+                    <FluentNavLink Href="users" Icon="@(new Icons.Regular.Size20.People())" IconColor="Color.Accent">User List</FluentNavLink>
+                    <FluentNavLink Href="settheme" Icon="@(new Icons.Regular.Size20.ContentSettings())" IconColor="Color.Accent">Set App Theme</FluentNavLink>
+                    <FluentDivider></FluentDivider>
+                    <FluentNavLink Href="logout" Icon="@(new Icons.Regular.Size20.SignOut())" IconColor="Color.Accent">Sign Out</FluentNavLink>
+                </Authorized>
+            </AuthorizeView>
         </FluentNavMenu>
     </nav>
 </div>

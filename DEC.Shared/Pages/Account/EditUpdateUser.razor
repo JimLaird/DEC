@@ -4,6 +4,8 @@
 @inject NavigationManager NavManager
 @inject IMessageService MessageService
 
+@attribute [Authorize]
+
 <FluentStack Orientation="Orientation.Vertical">
     <h1>Edit/Update User</h1>
 
@@ -32,12 +34,6 @@
                 <FluentValidationMessage For="@(() => userModel.PhoneNumber)" />
             </div>
             <div>
-                @* <FluentSelect Label="Roles" @bind-SelectedOption="@SelectedRoles" Multiple="true">
-                    @foreach (var role in availableRoles)
-                    {
-                        <FluentOption Value="@role.Name">@role.Name</FluentOption>
-                    }
-                </FluentSelect> *@
                 <InputSelect @bind-Value="@SelectedRoles" Multiple="true" class="form-select">
                     @foreach (var role in availableRoles)
                     {

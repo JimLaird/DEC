@@ -64,6 +64,9 @@ namespace DEC
             // Initialise Firebase Database
             builder.Services.AddSingleton(new FirebaseClient("https://decouriers-6eeae-default-rtdb.europe-west1.firebasedatabase.app/"));
 
+            // Register Firebase Storage
+            builder.Services.AddScoped<IFirebaseStorageService, FirebaseStorageService>();
+
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();
             builder.Logging.AddDebug();
