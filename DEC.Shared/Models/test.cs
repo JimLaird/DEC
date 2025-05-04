@@ -7,9 +7,10 @@ using System.Threading.Tasks;
 
 namespace DEC.Shared.Models
 {
-    public class User
+    public class test
     {
         public string UserId { get; set; }
+        [Required]
         public string Email { get; set; }
         [Required]
         public string DisplayName { get; set; }

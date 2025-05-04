@@ -13,6 +13,13 @@ Loading...
     {
         if (await Acct.CheckAuthenticatedAsync())
         {
+            //  Extract User Info
+
+            //  Check Token Validity
+
+            //  If Token Expired, Call Refresh Token
+
+
             NavManager.NavigateTo("/dashboard");
         }
         else

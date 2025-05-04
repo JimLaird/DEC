@@ -28,6 +28,10 @@ namespace DEC
                 .ConfigureFonts(fonts =>
                 {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
+                })
+                .ConfigureEssentials(essentials => 
+                {
+                    essentials.AddAppAction("app_info", "App Info", icon: "favicon.ico");
                 });
 
             // Add device-specific services used by the DEC.Shared project
@@ -47,7 +51,7 @@ namespace DEC
                 AuthDomain = Constants.FirebaseAuthDomain,
                 Providers = new FirebaseAuthProvider[]
                 {
-                    new EmailProvider()
+                        new EmailProvider()
                 }
             };
 
