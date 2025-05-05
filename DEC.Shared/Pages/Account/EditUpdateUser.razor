@@ -88,16 +88,18 @@
                 userModel.Uid = user.Uid;
                 userModel.DisplayName = user.DisplayName;
                 userModel.Email = user.Email;
-                userModel.IsEmailVerified = user.EmailVerified;
+                userModel.PhotoUrl = user.PhotoUrl;
                 userModel.PhoneNumber = user.PhoneNumber;
+                userModel.IsEmailVerified = user.EmailVerified;
+
 
                 // Map Firebase custom claims to role names using keyMap
-                var userRoles = user.CustomClaims
-                    .Where(x => x.Value is bool && (bool)x.Value)
-                    .Select(s => keyMap.ContainsKey(s.Key) ? keyMap[s.Key] : s.Key)
-                    .ToList();
+                userModel.Roles = user.CustomClaims
+                    .Where(x => (bool)x.Value).ToList()
+                    .Select(x => keyMap[x.Key]).ToList();
 
-                SelectedRoles = userRoles.ToArray();
+                SelectedRoles = userModel.Roles.ToArray();
+                userModel.Roles = GetRoles().Select(x => x.Name).ToList();
                 Console.WriteLine($"Loaded user: {userModel.DisplayName} with roles: {string.Join(", ", SelectedRoles)}");
             }
         }
@@ -154,6 +156,7 @@
                         Email = userModel.Email,
                         DisplayName = userModel.DisplayName,
                         PhoneNumber = userModel.PhoneNumber,
+                        
                     };
 
                 // Update user in Firebase

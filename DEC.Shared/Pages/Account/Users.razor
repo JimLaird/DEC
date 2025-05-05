@@ -11,7 +11,7 @@
 
 <div>
 
-    <FluentDataGrid Items="@userList" Pagination="@pagination" MultiLine >
+    <FluentDataGrid Items="@userList" Pagination="@pagination" MultiLine>
         <PropertyColumn Property="@(p => p.DisplayName)" Sortable="true" Title="User" />
         <TemplateColumn Title="Roles">
             <FluentStack Orientation="Orientation.Horizontal">
@@ -79,6 +79,8 @@
                             Uid = user.Uid,
                             Email = user.Email,
                             DisplayName = user.DisplayName,
+                            PhoneNumber = user.PhoneNumber,
+                            PhotoUrl = user.PhotoUrl,
                             IsEmailVerified = user.EmailVerified,
                             Roles = user.CustomClaims.Where(x => (bool)x.Value).ToList().Select(s => keyMap[s.Key]).ToList()
                         };
@@ -145,6 +147,7 @@
 
             // Refresh the user list
             await LoadUserDataAsync();
+            StateHasChanged();
         }
         catch (Exception ex)
         {
