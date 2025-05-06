@@ -71,6 +71,9 @@ namespace DEC
             // Register Firebase Storage
             builder.Services.AddScoped<IFirebaseStorageService, FirebaseStorageService>();
 
+            // Register Http Client
+            builder.Services.AddHttpClient();
+
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();
             builder.Logging.AddDebug();

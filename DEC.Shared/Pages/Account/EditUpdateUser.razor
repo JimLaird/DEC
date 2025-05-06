@@ -4,7 +4,7 @@
 @inject NavigationManager NavManager
 @inject IMessageService MessageService
 
-@attribute [Authorize]
+@attribute [Authorize(Roles ="Admin")]
 
 <FluentStack Orientation="Orientation.Vertical">
     <h1>Edit/Update User</h1>

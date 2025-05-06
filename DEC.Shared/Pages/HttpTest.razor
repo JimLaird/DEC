@@ -1,0 +1,235 @@
+﻿@page "/httptest"
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+
+<PageTitle>Network Test</PageTitle>
+
+<FluentStack Orientation="Orientation.Vertical" Style="gap: 16px">
+    <h1>Network Test</h1>
+
+    <FluentCard>
+        <h2>Test Configuration</h2>
+        <FluentStack Orientation="Orientation.Vertical" Style="gap: 12px">
+            <FluentTextField @bind-Value="testUrl" Label="URL to Test" Placeholder="https://example.com" />
+            <FluentSelect @bind-SelectedValue="selectedTestType" TOption="string" Label="Test Type">
+                <FluentOption TOption="string" Value="@nameof(TestType.Ping)">Ping Test</FluentOption>
+                <FluentOption TOption="string" Value="@nameof(TestType.Http)">HTTP Request</FluentOption>
+                <FluentOption TOption="string" Value="@nameof(TestType.Both)">Both Tests</FluentOption>
+            </FluentSelect>
+            
+            <FluentButton Appearance="Appearance.Accent" OnClick="RunTests" Disabled="@isRunningTest">
+                @if (isRunningTest)
+                {
+                    <FluentProgressRing />
+                    <span style="margin-left: 8px;">Running Test...</span>
+                }
+                else
+                {
+                    <span>Run Test</span>
+                }
+            </FluentButton>
+        </FluentStack>
+    </FluentCard>
+
+    @if (testResults.Any())
+    {
+        <FluentCard>
+            <h2>Test Results</h2>
+            <FluentDataGrid TGridItem="TestResult" Items="@testResults.AsQueryable()" GridTemplateColumns="1fr 1fr auto" Style="height: auto">
+                <PropertyColumn Property="@(r => r.TestName)" Title="Test" />
+                <PropertyColumn Property="@(r => r.Status)" Title="Status" />
+                <TemplateColumn Title="Details">
+                    <div style="white-space: normal; overflow-wrap: break-word; max-width: 400px;">@context.Details</div>
+                </TemplateColumn>
+            </FluentDataGrid>
+        </FluentCard>
+    }
+    
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <FluentMessageBar Intent="MessageIntent.Error" @bind-Open="@isErrorVisible">
+            @errorMessage
+        </FluentMessageBar>
+    }
+</FluentStack>
+
+@code {
+    // Make the TestResult class public for better type inference
+    public class TestResult
+    {
+        public string TestName { get; set; }
+        public string Status { get; set; }
+        public string Details { get; set; }
+        public DateTime Timestamp { get; set; } = DateTime.Now;
+    }
+
+    private string testUrl = "https://www.google.com";
+    private TestType selectedTestType = TestType.Both;
+    private bool isRunningTest = false;
+    private bool isErrorVisible = true;
+    private string errorMessage = string.Empty;
+    private List<TestResult> testResults = new List<TestResult>();
+
+    private enum TestType
+    {
+        Ping,
+        Http,
+        Both
+    }
+
+    private async Task RunTests()
+    {
+        if (string.IsNullOrWhiteSpace(testUrl))
+        {
+            errorMessage = "Please enter a URL to test";
+            isErrorVisible = true;
+            return;
+        }
+
+        try
+        {
+            isRunningTest = true;
+            errorMessage = string.Empty;
+            testResults.Clear();
+
+            // Parse the URL to ensure it's valid
+            if (!Uri.TryCreate(testUrl, UriKind.Absolute, out Uri uri))
+            {
+                errorMessage = $"Invalid URL format: {testUrl}";
+                isErrorVisible = true;
+                return;
+            }
+
+            switch (selectedTestType)
+            {
+                case TestType.Ping:
+                    await RunPingTest(uri);
+                    break;
+                case TestType.Http:
+                    await RunHttpTest(uri);
+                    break;
+                case TestType.Both:
+                    await RunPingTest(uri);
+                    await RunHttpTest(uri);
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Test error: {ex.Message}";
+            isErrorVisible = true;
+        }
+        finally
+        {
+            isRunningTest = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task RunPingTest(Uri uri)
+    {
+        var hostName = uri.Host;
+        var result = new TestResult { TestName = "Network Connectivity" };
+
+        try
+        {
+            var connectivityResult = await CheckNetworkConnectivity();
+            
+            if (connectivityResult.IsConnected)
+            {
+                result.Status = "Success";
+                result.Details = $"Network is connected. Type: {connectivityResult.ConnectionType}";
+            }
+            else
+            {
+                result.Status = "Failed";
+                result.Details = "No network connectivity detected";
+            }
+        }
+        catch (Exception ex)
+        {
+            result.Status = "Error";
+            result.Details = $"Ping test failed: {ex.Message}";
+        }
+
+        testResults.Add(result);
+    }
+
+    private async Task<(bool IsConnected, string ConnectionType)> CheckNetworkConnectivity()
+    {
+        try
+        {
+            // Using .NET MAUI Connectivity APIs
+#if ANDROID || IOS || MACCATALYST || WINDOWS
+            var current = Microsoft.Maui.Networking.Connectivity.NetworkAccess;
+            var profiles = Microsoft.Maui.Networking.Connectivity.ConnectionProfiles;
+            
+            bool isConnected = current == Microsoft.Maui.Networking.NetworkAccess.Internet;
+            string connectionType = string.Join(", ", profiles);
+            
+            return (isConnected, connectionType);
+#else
+            // For web or other platforms where direct connectivity check is not available
+            return (true, "Unknown (browser)");
+#endif
+        }
+        catch
+        {
+            // Fallback for any issues with connectivity APIs
+            return (true, "API unavailable");
+        }
+    }
+
+    private async Task RunHttpTest(Uri uri)
+    {
+        var result = new TestResult { TestName = "HTTP Request" };
+        
+        try
+        {
+            var startTime = DateTime.Now;
+            var response = await Http.GetAsync(uri);
+            var endTime = DateTime.Now;
+            var duration = (endTime - startTime).TotalMilliseconds;
+            
+            result.Status = response.IsSuccessStatusCode ? "Success" : "Failed";
+            result.Details = $"Status: {(int)response.StatusCode} {response.StatusCode}, " +
+                            $"Time: {duration:F2}ms, " +
+                            $"Server: {response.Headers.Server}";
+            
+            if (response.Content.Headers.ContentLength.HasValue)
+            {
+                result.Details += $", Size: {FormatBytes(response.Content.Headers.ContentLength.Value)}";
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            result.Status = "Error";
+            result.Details = $"Request failed: {ex.Message}";
+        }
+        catch (TaskCanceledException)
+        {
+            result.Status = "Timeout";
+            result.Details = "The request timed out";
+        }
+        catch (Exception ex)
+        {
+            result.Status = "Error";
+            result.Details = $"Error: {ex.Message}";
+        }
+        
+        testResults.Add(result);
+    }
+    
+    private string FormatBytes(long bytes)
+    {
+        string[] suffixes = { "B", "KB", "MB", "GB", "TB" };
+        int counter = 0;
+        decimal number = bytes;
+        while (Math.Round(number / 1024) >= 1)
+        {
+            number = number / 1024;
+            counter++;
+        }
+        return $"{number:n1}{suffixes[counter]}";
+    }
+}

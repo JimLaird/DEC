@@ -33,4 +33,19 @@ namespace DEC.Shared.Models
         public int ProviderType { get; set; }
     }
 
+    // Added these 2 classes
+    public class UserInfo
+    {
+        public User[] users { get; set; }
+    }
+
+    public class User
+    {
+        public string LocalId { get; set; }
+        public string Email { get; set; }
+        public string DisplayName { get; set; }
+        public string CustomAttributes { get; set; }
+    }
+    // Added these 2 classes
+
 }
