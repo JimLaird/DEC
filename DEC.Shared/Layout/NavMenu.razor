@@ -8,8 +8,10 @@
                 <Authorized>            
                     <FluentNavLink Href="weather" Icon="@(new Icons.Regular.Size20.WeatherPartlyCloudyDay())" IconColor="Color.Accent">Weather</FluentNavLink>
                     <FluentNavLink Href="users" Icon="@(new Icons.Regular.Size20.People())" IconColor="Color.Accent">User List</FluentNavLink>
-                    <FluentNavLink Href="settheme" Icon="@(new Icons.Regular.Size20.ContentSettings())" IconColor="Color.Accent">Set App Theme</FluentNavLink>
-                    <FluentNavLink Href="httptest" Icon="@(new Icons.Regular.Size20.NetworkCheck())" IconColor="Color.Accent">Test Network</FluentNavLink>
+                    <FluentNavGroup Expanded="false" Title="Settings" Icon="@(new Icons.Regular.Size20.Settings())" IconColor="Color.Accent">
+                        <FluentNavLink Href="settheme" Icon="@(new Icons.Regular.Size20.ContentSettings())" IconColor="Color.Accent">Set App Theme</FluentNavLink>
+                        <FluentNavLink Href="httptest" Icon="@(new Icons.Regular.Size20.NetworkCheck())" IconColor="Color.Accent">Test Network</FluentNavLink>
+                    </FluentNavGroup>
                     <FluentDivider></FluentDivider>
                     <FluentNavLink Href="logout" Icon="@(new Icons.Regular.Size20.SignOut())" IconColor="Color.Accent">Sign Out</FluentNavLink>
                 </Authorized>
