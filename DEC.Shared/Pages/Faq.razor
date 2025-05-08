@@ -1,14 +1,16 @@
 ﻿@page "/faq"
 
+@attribute [Authorize]
+
 <PageTitle>FAQ</PageTitle>
 
 <h1>FAQ</h1>
 
 <FluentCard>
     <FluentAccordion ExpandMode="AccordionExpandMode.Single">
-       <FluentAccordionItem Heading="Where do I send paperwork?">
+        <FluentAccordionItem Heading="Where do I send paperwork?">
             <FluentIcon Value="@(new Icons.Regular.Size20.Mail())" Color="@Color.Accent" Slot="start" />
-            You can send paperwork to the following address: <br /><br />D &amp; E Couriers Ltd <br />36 Provost Mitchell Road <br />Montrose  DD10 9DH
+            You can send paperwork to the following address: <br /><br />D &amp; E Couriers Ltd <br />36 Provost Mitchell Road <br />Montrose  DD10 9DH      
        </FluentAccordionItem>
         <FluentAccordionItem Heading="I've broken down...">
             <FluentIcon Value="@(new Icons.Regular.Size20.QuestionCircle())" Color="@Color.Accent" Slot="start" />
