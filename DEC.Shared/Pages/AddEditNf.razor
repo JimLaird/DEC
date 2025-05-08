@@ -1,0 +1,116 @@
+﻿@page "/addeditnf"
+@page "/addeditnf/{nfId}"
+
+@attribute [Authorize(Roles = "Admin")]
+
+@inject FirebaseClient Fc
+@inject NavigationManager NavManager
+
+@using Firebase.Database.Query
+
+<FluentStack Orientation="Orientation.Vertical">
+    <h1>@(!string.IsNullOrWhiteSpace(nfId) ? "Update" : "Add") NF Client</h1>
+
+    @if (nfClient != null)
+    {
+        <EditForm Model="nfClient" OnValidSubmit="AddUpdateNF">
+            <DataAnnotationsValidator />
+            <FluentValidationSummary />
+
+            <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px">
+                <div>
+                    <FluentTextField Name="clientname" @bind-Value="@nfClient.Name" Label="Client Name" Required="true" TextFieldType="TextFieldType.Text" />
+                    <FluentValidationMessage For="@(() => nfClient.Name)" />
+                </div>
+                <div>
+                    <FluentTextField Name="clientcx" @bind-Value="@nfClient.Cx" Label="CX No." Required="true" TextFieldType="TextFieldType.Text" />
+                    <FluentValidationMessage For="@(() => nfClient.Cx)" />
+                </div>
+                <div>
+                    <FluentButton Type="ButtonType.Submit" Appearance="Appearance.Accent">
+                        @(!string.IsNullOrWhiteSpace(nfId) ? "Update" : "Add") NF Client
+                    </FluentButton>
+                    <FluentButton Type="ButtonType.Button" Appearance="Appearance.Outline" OnClick="@(() => NavManager.NavigateTo("/nflist"))">Cancel</FluentButton>
+                </div>
+            </FluentStack>
+        </EditForm>
+    }
+    else
+    {
+        <FluentProgressRing />
+        <p>Loading...</p>
+    }
+
+</FluentStack>
+@code {
+    private NonFactored nfClient = null!;
+
+    [Parameter]
+    public string? nfId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadNFAsync();
+    }
+
+    private async Task LoadNFAsync()
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(nfId))
+            {
+                var nfResponse = await Fc.Child($"NF/{nfId}").OnceSingleAsync<NonFactored>();
+                if (nfResponse != null)
+                {
+                    nfClient = nfResponse;
+                }
+                else
+                {
+                    nfClient = new NonFactored();
+                }
+            }
+            else
+            {
+                nfClient = new NonFactored();
+            }
+        }
+        catch (Firebase.Database.FirebaseException ex)
+        {
+            Console.WriteLine($"Firebase error: {ex.Message}");
+            nfClient = new NonFactored();
+        }
+        StateHasChanged();
+    }
+
+    private async Task AddUpdateNF()
+    {
+        bool success = true;
+
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(nfId))
+            //  Edit Mode
+            {
+                await Fc.Child($"NF/{nfId}").PutAsync(nfClient);
+            }
+            //  Add Mode
+            else
+            {
+                await Fc.Child($"NF").PostAsync(nfClient);
+            }
+            if (success)
+            {
+                NavManager.NavigateTo("/nflist");
+            }
+            else
+            {
+                // Handle error
+            }
+        }
+        catch (Firebase.Database.FirebaseException ex)
+        {
+            Console.WriteLine($"Firebase error: {ex.Message}");
+            // Handle error
+        }
+    }
+}
