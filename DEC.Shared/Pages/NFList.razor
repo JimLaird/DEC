@@ -38,7 +38,7 @@ else
 {
     <div>
         <FluentDataGrid Items="@filteredNonFactoredList" Pagination="@pagination" TGridItem="NonFactored">
-            <PropertyColumn Property="@(n => n.Name)" Sortable="true" Title="Client Name" />
+            <PropertyColumn Property="@(n => n.Name)" Sortable="true" Title="Client Name" SortBy="@rankSort" />
             <PropertyColumn Property="@(n => n.Cx)" Sortable="true" Title="CX No." />
 
             <TemplateColumn Title="Actions">
@@ -66,6 +66,9 @@ else
     private IQueryable<NonFactored>? filteredNonFactoredList;
     private bool isLoading = true; private List<NonFactored> nfList = new List<NonFactored>();
     private string searchQuery = string.Empty;
+
+    GridSort<NonFactored> rankSort = GridSort<NonFactored>
+        .ByAscending(x => x.Name);
 
     protected override async Task OnInitializedAsync()
     {

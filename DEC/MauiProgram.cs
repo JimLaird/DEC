@@ -74,6 +74,9 @@ namespace DEC
             // Register Http Client
             builder.Services.AddHttpClient();
 
+            // Register Phone Dialler Service
+            builder.Services.AddSingleton<IPhoneDiallerService, PhoneDiallerService>();
+
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();
             builder.Logging.AddDebug();

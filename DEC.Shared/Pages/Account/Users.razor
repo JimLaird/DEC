@@ -2,6 +2,7 @@
 
 @inject NavigationManager NavManager
 @inject IDialogService DialogService
+@inject IPhoneDiallerService PhoneDialler
 
 @attribute [Authorize(Roles ="Admin, User")]
 
@@ -33,7 +34,7 @@
             </FluentStack>
         </TemplateColumn>
         <TemplateColumn Title="Actions">
-            <FluentIcon Value="@(new Icons.Regular.Size20.Phone())" Color="Color.Accent" />
+            <FluentIcon Value="@(new Icons.Regular.Size20.PhoneArrowRight())" Color="Color.Accent" OnClick="@(() => CallUser(context))" />
             <span>&nbsp;</span>
             <FluentIcon Value="@(new Icons.Regular.Size20.Edit())" Color="Color.Accent" OnClick="@(() => EditUser(context))" />
             <AuthorizeView Roles="Admin">
@@ -98,6 +99,28 @@
         catch (Exception ex)
         {
 
+        }
+    }
+
+    async void CallUser(Info p)
+    {
+        if (string.IsNullOrEmpty(p.PhoneNumber))
+        {
+            await DialogService.ShowWarningAsync(
+                $"No phone number available for {p.DisplayName}.",
+                "Cannot Place Call");
+            return;
+        }
+
+        // Call the user through our service
+        bool success = await PhoneDialler.PlacePhoneCallAsync(p.PhoneNumber, p.DisplayName);
+
+        if (!success)
+        {
+            
+            await DialogService.ShowWarningAsync(
+                $"Unable to place call to {p.DisplayName}. Make sure the device has calling capabilities.",
+                "Call Failed");
         }
     }
 
