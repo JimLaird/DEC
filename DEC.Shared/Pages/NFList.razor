@@ -21,30 +21,34 @@
     </AuthorizeView>
 </div>
 
+<div>
+    <FluentTextField Placeholder="Search by Name or CX" @bind-Value="@searchQuery" @oninput="OnSearchInput" />
+</div>
+
 @if (isLoading)
 {
     <FluentProgressRing />
     <p>Loading data...</p>
 }
-else if (nonFactoredList == null || !nonFactoredList.Any())
+else if (filteredNonFactoredList == null || !filteredNonFactoredList.Any())
 {
     <p>No Data. Please add Non Factored Clients</p>
 }
 else
 {
     <div>
-        <FluentDataGrid Items="@nonFactoredList" Pagination="@pagination" TGridItem="NonFactored">
+        <FluentDataGrid Items="@filteredNonFactoredList" Pagination="@pagination" TGridItem="NonFactored">
             <PropertyColumn Property="@(n => n.Name)" Sortable="true" Title="Client Name" />
             <PropertyColumn Property="@(n => n.Cx)" Sortable="true" Title="CX No." />
 
             <TemplateColumn Title="Actions">
                 <FluentIcon Value="@(new Icons.Regular.Size20.Edit())" Color="Color.Accent" OnClick="@(() => EditNF(context.Id))" />
-                
-                    <AuthorizeView Roles="Admin">
-                        <Authorized Context="auth">
-                    <span>&nbsp;</span>
-                <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Color="Color.Warning" OnClick="@(() => DeleteNF(context.Id))" />
-                </Authorized>
+
+                <AuthorizeView Roles="Admin">
+                    <Authorized Context="auth">
+                        <span>&nbsp;</span>
+                        <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Color="Color.Warning" OnClick="@(() => DeleteNF(context.Id))" />
+                    </Authorized>
                 </AuthorizeView>
             </TemplateColumn>
         </FluentDataGrid>
@@ -59,11 +63,14 @@ else
         };
 
     private IQueryable<NonFactored>? nonFactoredList;
-    private bool isLoading = true;
+    private IQueryable<NonFactored>? filteredNonFactoredList;
+    private bool isLoading = true; private List<NonFactored> nfList = new List<NonFactored>();
+    private string searchQuery = string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadNFDataAsync();
+        filteredNonFactoredList = nonFactoredList; // Initialize filtered list
     }
 
     private async Task LoadNFDataAsync()
@@ -73,21 +80,25 @@ else
             isLoading = true;
             StateHasChanged();
 
-            var List = new List<NonFactored>();
+            // Clear any existing data
+            nfList.Clear();
 
-            Fc.Child("NF")
+            // Store the subscription for proper cleanup
+            var subscription = Fc.Child("NF")
                 .AsObservable<NonFactored>()
                 .Subscribe(item =>
-                 {
-                     if (item.Object != null)
-                     {
-                         item.Object.Id = item.Key;
-                         List.Add(item.Object);
-                         nonFactoredList = List.AsQueryable();
-                     }
-                 });
+                {
+                    if (item.Object != null)
+                    {
+                        item.Object.Id = item.Key;
+                        nfList.Add(item.Object);
+                        nonFactoredList = nfList.AsQueryable();
+                        FilterData(); // Apply any current filters
+                        InvokeAsync(StateHasChanged); // Notify UI of changes
+                    }
+                });
 
-            // Wait a moment for data to load
+            // Wait a moment for initial data to load
             await Task.Delay(2000);
         }
         catch (Exception ex)
@@ -101,37 +112,53 @@ else
         }
     }
 
-    void EditNF(string Id)
+    private void OnSearchInput(ChangeEventArgs e)
+    {
+        searchQuery = e.Value?.ToString() ?? string.Empty;
+        FilterData();
+    }
+
+    private void FilterData()
+    {
+        if (string.IsNullOrWhiteSpace(searchQuery))
+        {
+            filteredNonFactoredList = nonFactoredList;
+        }
+        else
+        {
+            filteredNonFactoredList = nonFactoredList?
+                .Where(n =>
+                    (n.Name != null && n.Name.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)) ||
+                    (n.Cx != null && n.Cx.Contains(searchQuery, StringComparison.OrdinalIgnoreCase)))
+                .AsQueryable();
+        }
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void AddNF()
+    {
+        NavManager.NavigateTo("/addeditnf");
+    }
+
+    private void EditNF(string Id)
     {
         NavManager.NavigateTo($"/addeditnf/{Id}");
     }
 
-    async Task DeleteNF(string Id)
+    private async Task DeleteNF(string Id)
     {
-        // Find the client name for the confirmation message
         var clientToDelete = nonFactoredList?.FirstOrDefault(n => n.Id == Id);
         string clientName = clientToDelete?.Name ?? "this client";
 
-        // Create the dialog content
         RenderFragment dialogContent = builder =>
         {
             builder.OpenElement(0, "div");
             builder.AddAttribute(1, "style", "min-height: 6rem; padding: 1rem;");
-
-            builder.OpenElement(2, "div");
-            builder.AddAttribute(3, "style", "margin-bottom: 1rem;");
-            builder.AddContent(4, $"Are you sure you want to delete client '{clientName}'?");
-            builder.CloseElement();
-
-            builder.OpenElement(5, "div");
-            builder.AddAttribute(6, "style", "color: var(--neutral-foreground-hint);");
-            builder.AddContent(7, "This action cannot be undone.");
-            builder.CloseElement();
-
+            builder.AddContent(2, $"Are you sure you want to delete client '{clientName}'?");
             builder.CloseElement();
         };
 
-        // Show the confirmation dialog
         var dialog = await DialogService.ShowDialogAsync(
             dialogContent,
             new DialogParameters
@@ -140,9 +167,6 @@ else
                     Width = "400px",
                     PrimaryAction = "Delete",
                     SecondaryAction = "Cancel",
-                    TrapFocus = true,
-                    PreventDismissOnOverlayClick = true,
-                    PreventScroll = true,
                     Modal = true
                 });
 
@@ -152,41 +176,12 @@ else
 
         try
         {
-            // Delete the client from Firebase
             await Fc.Child($"NF/{Id}").DeleteAsync();
-
-            // Refresh the data
             await LoadNFDataAsync();
-            StateHasChanged();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error deleting client: {ex.Message}");
-
-            // Show an error dialog if deletion fails
-            RenderFragment errorContent = builder =>
-            {
-                builder.OpenElement(0, "div");
-                builder.AddAttribute(1, "style", "min-height: 4rem; padding: 1rem;");
-                builder.AddContent(2, $"Failed to delete client: {ex.Message}");
-                builder.CloseElement();
-            };
-
-            await DialogService.ShowDialogAsync(
-                errorContent,
-                new DialogParameters
-                    {
-                        Title = "Error",
-                        Width = "400px",
-                        PrimaryAction = "OK",
-                        Modal = true
-                    });
         }
     }
-
-    private void AddNF()
-    {
-        NavManager.NavigateTo("/addeditnf");
-    }
 }
-
