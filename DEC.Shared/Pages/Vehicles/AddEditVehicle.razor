@@ -1,0 +1,541 @@
+﻿@page "/addeditvehicle"
+@page "/addeditvehicle/{vId}"
+
+@attribute [Authorize(Roles = "Admin")]
+
+@using Firebase.Auth
+
+
+@inject FirebaseClient Fc
+@inject NavigationManager NavManager
+
+@using Firebase.Database.Query
+
+<FluentStack Orientation="Orientation.Vertical">
+    <h1>@(!string.IsNullOrWhiteSpace(vId) ? "Update" : "Add") Vehicle</h1>
+
+    @if (vehicle != null)
+    {
+        <EditForm Model="vehicle" OnValidSubmit="AddUpdateVehicle">
+            <DataAnnotationsValidator />
+            <FluentValidationSummary />
+
+            <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px">
+                <div>
+                    <FluentTextField Name="vehiclename" @bind-Value="@vehicle.Name" Label="Vehicle Name" Required="true" TextFieldType="TextFieldType.Text" />
+                    <FluentValidationMessage For="@(() => vehicle.Name)" />
+                </div>
+                <div>
+                    <FluentSelect Items="@vehicleTypes"
+                    Label="Vehicle Type"
+                    Required=true
+                    Id="vtypelistbox"
+                    Placeholder="Select Type"
+                    TOption="Option<string>"
+                    Multiple=false
+                    OptionText="@(i => i.Text)"
+                    OptionValue="@(i => i.Value)"
+                    Value="@selectedVehicleType"
+                    ValueChanged="@(value => VehicleTypeChanged(value))" />
+                </div>
+                <div>
+                    <FluentTextField Name="vehiclemake" @bind-Value="@vehicle.Make" Label="Vehicle Make" Required="true" TextFieldType="TextFieldType.Text" />
+                    <FluentValidationMessage For="@(() => vehicle.Make)" />
+                </div>
+                <div>
+                    <FluentTextField Name="vehiclemodel" @bind-Value="@vehicle.Model" Label="Vehicle Model" Required="true" TextFieldType="TextFieldType.Text" />
+                    <FluentValidationMessage For="@(() => vehicle.Model)" />
+                </div>
+                <div>
+                    <FluentTextField Name="vehicleyear" @bind-Value="@vehicle.Year" Label="Vehicle Year" Required="true" TextFieldType="TextFieldType.Text" />
+                    <FluentValidationMessage For="@(() => vehicle.Year)" />
+                </div>
+                <div>
+                    <FluentTextField Name="vehicleregno" @bind-Value="@vehicle.RegNo" Label="Vehicle Reg No." Required="true" TextFieldType="TextFieldType.Text" />
+                    <FluentValidationMessage For="@(() => vehicle.RegNo)" />
+                </div>
+                @* <div>
+                    <FluentTextField Name="vehiclemotexp" @bind-Value="@vehicle.MOTExpiry" Label="MOT Expiry" Required="true" TextFieldType="TextFieldType.Text" />
+                    <FluentValidationMessage For="@(() => vehicle.MOTExpiry)" />
+                </div> *@
+                <div>
+                    <FluentDatePicker @bind-Value="@motDate"
+                    Label="MOT Expiry"
+                    Required="true"
+                    OnDateChanged="@UpdateMOTExpiryString" />
+                    <FluentValidationMessage For="@(() => vehicle.MOTExpiry)" />
+                </div>
+                @* <div>
+                    <FluentTextField Name="vehicletaxexp" @bind-Value="@vehicle.TaxExpiry" Label="Tax Expiry" Required="true" TextFieldType="TextFieldType.Text" />
+                    <FluentValidationMessage For="@(() => vehicle.TaxExpiry)" />
+                </div> *@
+                <div>
+                    <FluentDatePicker @bind-Value="@taxDate"
+                    Label="Tax Expiry"
+                    Required="true"
+                    OnDateChanged="@UpdateTAXExpiryString" />
+                    <FluentValidationMessage For="@(() => vehicle.TaxExpiry)" />
+                </div>
+                @* <div>
+                    <FluentTextField Name="handrexp" @bind-Value="@vehicle.HireAndRewardExpiry" Label="H&R Expiry" Required="true" TextFieldType="TextFieldType.Text" />
+                    <FluentValidationMessage For="@(() => vehicle.HireAndRewardExpiry)" />
+                </div> *@
+                <div>
+                    <FluentDatePicker @bind-Value="@hrDate"
+                    Label="H&R Expiry"
+                    Required="true"
+                    OnDateChanged="@UpdateHRExpiryString" />
+                    <FluentValidationMessage For="@(() => vehicle.HireAndRewardExpiry)" />
+                </div>
+                @* <div>
+                    <FluentTextField Name="gitexp" @bind-Value="@vehicle.GITExpiry" Label="GIT Expiry" Required="true" TextFieldType="TextFieldType.Text" />
+                    <FluentValidationMessage For="@(() => vehicle.GITExpiry)" />
+                </div> *@
+                <div>
+                    <FluentDatePicker @bind-Value="@gitDate"
+                    Label="GIT Expiry"
+                    Required="true"
+                    OnDateChanged="@UpdateGITExpiryString" />
+                    <FluentValidationMessage For="@(() => vehicle.GITExpiry)" />
+                </div>
+                <div>
+                    <FluentTextField Name="gitlimit" @bind-Value="@vehicle.GITLimit" Label="GIT Limit" Required="true" TextFieldType="TextFieldType.Text" />
+                    <FluentValidationMessage For="@(() => vehicle.GITLimit)" />
+                </div>
+                <div>
+                    Current Driver: <strong>@vehicle.Driver</strong>
+                </div>
+                <div>
+                    <FluentSelect Items="@users"
+                    Label="Owner/Driver"
+                    Required="true"
+                    Id="driverlistbox"
+                    Placeholder="Select Driver"
+                    TOption="Option<string>"
+                    Multiple="false"
+                    OptionText="@(i => i.Text)"
+                    OptionValue="@(i => i.Value)"
+                    @bind-Value="@selectedDriverValue" />
+
+                    <FluentValidationMessage For="@(() => vehicle.Driver)" />
+                </div>
+                <div>
+                    <FluentButton Type="ButtonType.Submit" Appearance="Appearance.Accent">
+                        @(!string.IsNullOrWhiteSpace(vId) ? "Update" : "Add") Vehicle
+                    </FluentButton>
+                    <FluentButton Type="ButtonType.Button" Appearance="Appearance.Outline" OnClick="@(() => NavManager.NavigateTo("/vehiclelist"))">Cancel</FluentButton>
+                </div>
+
+            </FluentStack>
+
+        </EditForm>
+    }
+    else
+    {
+        <FluentProgressRing />
+        <p>Loading...</p>
+    }
+</FluentStack>
+
+@code {
+    private Vehicle vehicle = null;
+
+    private DateTime? motDate;
+    private DateTime? taxDate;
+    private DateTime? hrDate;
+    private DateTime? gitDate;
+
+    private List<Option<string>> users = new();
+
+    private string selectedDriverValue;
+    private string selectedVehicleType;
+
+    private string GetDriverDisplayName(string combinedValue)
+    {
+        if (string.IsNullOrEmpty(combinedValue))
+            return string.Empty;
+
+        var parts = combinedValue.Split('|');
+        return parts.Length > 0 ? parts[0] : combinedValue;
+    }
+
+    private string GetDriverUid(string combinedValue)
+    {
+        if (string.IsNullOrEmpty(combinedValue))
+            return string.Empty;
+
+        var parts = combinedValue.Split('|');
+        return parts.Length > 1 ? parts[1] : string.Empty;
+    }
+
+    private void DriverValueChanged(string value)
+    {
+        selectedDriverValue = value;
+        if (!string.IsNullOrEmpty(value))
+        {
+            // Store the combined value for processing later
+            vehicle.Driver = value;
+        }
+    }
+
+    private void VehicleTypeChanged(string value)
+    {
+        selectedVehicleType = value;
+        vehicle.Type = value;
+    }
+
+    static List<Option<string>> vehicleTypes = new() 
+    {
+        {new Option<string> { Value = "Motorcycle", Text = "Motorcycle" } },
+        {new Option<string> { Value = "Car", Text = "Car" } },
+        {new Option<string> { Value = "Small Van", Text = "Small Van" } },
+        {new Option<string> { Value = "Midi Van", Text = "Midi Van" } },
+        {new Option<string> { Value = "SWB (up to 2.4m)", Text = "SWB (up to 2.4m)" } },
+        {new Option<string> { Value = "MWB (up to 3.0m)", Text = "MWB (up to 3.0m)" } },
+        {new Option<string> { Value = "LWB (up to 4.0m)", Text = "LWB (up to 4.0m)" } },
+        {new Option<string> { Value = "XLWB (4.0m +)", Text = "XLWB (4.0m +)" } },
+        {new Option<string> { Value = "Luton Van", Text = "Luton Van" } },
+    };
+
+    private string _vId;
+    [Parameter]
+    public string? vId
+    {
+        get => _vId;
+        set
+        {
+            if (_vId != value)
+            {
+                _vId = value;
+                // Reset selections when ID changes
+                selectedDriverValue = null;
+                selectedVehicleType = null;
+            }
+        }
+    }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Clear any previously selected values
+            selectedDriverValue = null;
+            selectedVehicleType = null;
+
+            await LoadVehicleAsync();
+            await LoadUsersAsync();
+
+
+            // Parse dates
+            if (vehicle != null)
+            {
+                if (!string.IsNullOrEmpty(vehicle.MOTExpiry))
+                {
+                    DateTime.TryParse(vehicle.MOTExpiry?.Replace(".:", ":"), out DateTime parsedDate);
+                    motDate = parsedDate;
+                }
+
+                if (!string.IsNullOrEmpty(vehicle.TaxExpiry))
+                {
+                    DateTime.TryParse(vehicle.TaxExpiry?.Replace(".:", ":"), out DateTime parsedDate);
+                    taxDate = parsedDate;
+                }
+
+                if (!string.IsNullOrEmpty(vehicle.HireAndRewardExpiry))
+                {
+                    DateTime.TryParse(vehicle.HireAndRewardExpiry?.Replace(".:", ":"), out DateTime parsedDate);
+                    hrDate = parsedDate;
+                }
+
+                if (!string.IsNullOrEmpty(vehicle.GITExpiry))
+                {
+                    DateTime.TryParse(vehicle.GITExpiry?.Replace(".:", ":"), out DateTime parsedDate);
+                    gitDate = parsedDate;
+                }
+
+                if (!string.IsNullOrEmpty(vehicle.Type))
+                {
+                    selectedVehicleType = vehicle.Type; // Direct assignment should work
+                }
+               
+            }
+
+            await InitializeSelectedValues();
+
+            // Debug output
+            Console.WriteLine("OnInitializedAsync completed:");
+            Console.WriteLine($"- Selected driver value: '{selectedDriverValue}'");
+            Console.WriteLine($"- Vehicle.Driver: '{vehicle?.Driver}'");
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in initialization: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
+        }
+
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        base.OnAfterRender(firstRender);
+
+        if (firstRender)
+        {
+            Console.WriteLine("First render completed");
+            Console.WriteLine($"- Users count: {users.Count}");
+            Console.WriteLine($"- Selected driver value: '{selectedDriverValue}'");
+            Console.WriteLine($"- Vehicle.Driver: '{vehicle?.Driver}'");
+            Console.WriteLine($"- Vehicle.Uid: '{vehicle?.Uid}'");
+
+            if (!string.IsNullOrEmpty(vehicle?.Driver) && string.IsNullOrEmpty(selectedDriverValue))
+            {
+                Console.WriteLine("WARNING: Vehicle has a driver but selectedDriverValue is empty!");
+                // This helps you identify the issue
+            }
+        }
+    }
+
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!string.IsNullOrEmpty(vId) && selectedDriverValue == null)
+        {
+            // Force initialization if we have a vehicle ID but no selected driver
+            await InitializeSelectedValues();
+        }
+    }
+
+    private async Task InitializeSelectedValues()
+    {
+        try
+        {
+            // After loading users and vehicle
+            if (vehicle != null && !string.IsNullOrEmpty(vehicle.Driver) && users.Any())
+            {
+                Console.WriteLine($"Attempting to find driver match for: {vehicle.Driver}");
+
+                // Direct lookup by display name (the most common case)
+                var nameMatch = users.FirstOrDefault(u => u.Text == vehicle.Driver);
+                if (nameMatch != null)
+                {
+                    selectedDriverValue = nameMatch.Value;
+                    Console.WriteLine($"Found direct name match: {nameMatch.Text}, value: {nameMatch.Value}");
+                }
+                // If direct lookup fails and we have a UID, try matching by UID
+                else if (!string.IsNullOrEmpty(vehicle.Uid))
+                {
+                    var uidMatch = users.FirstOrDefault(u => GetDriverUid(u.Value) == vehicle.Uid);
+                    if (uidMatch != null)
+                    {
+                        selectedDriverValue = uidMatch.Value;
+                        Console.WriteLine($"Found UID match: {uidMatch.Text}, value: {uidMatch.Value}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"No UID match found for: {vehicle.Uid}");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine($"No matching user found for driver: {vehicle.Driver}");
+                    // Try a case-insensitive match as last resort
+                    var caseInsensitiveMatch = users.FirstOrDefault(u =>
+                        string.Equals(u.Text, vehicle.Driver, StringComparison.OrdinalIgnoreCase));
+                    if (caseInsensitiveMatch != null)
+                    {
+                        selectedDriverValue = caseInsensitiveMatch.Value;
+                        Console.WriteLine($"Found case-insensitive match: {caseInsensitiveMatch.Text}");
+                    }
+                }
+
+                Console.WriteLine($"Selected driver: {selectedDriverValue ?? "none"}");
+
+                // Force UI update
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in InitializeSelectedValues: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
+        }
+    }
+
+
+
+
+
+    // Use object as the type to be more flexible
+    private void UpdateMOTExpiryString(ChangeEventArgs args = null)
+    {
+        if (motDate.HasValue)
+        {
+            vehicle.MOTExpiry = motDate.Value.ToString("yyyy-MM-ddTHH:mm:ss");
+        }
+    }
+
+    private void UpdateTAXExpiryString(ChangeEventArgs args = null)
+    {
+        if (taxDate.HasValue)
+        {
+            vehicle.TaxExpiry = taxDate.Value.ToString("yyyy-MM-ddTHH:mm:ss");
+        }
+    }
+
+    private void UpdateHRExpiryString(ChangeEventArgs args = null)
+    {
+        if (hrDate.HasValue)
+        {
+            vehicle.HireAndRewardExpiry = hrDate.Value.ToString("yyyy-MM-ddTHH:mm:ss");
+        }
+    }
+
+    private void UpdateGITExpiryString(ChangeEventArgs args = null)
+    {
+        if (gitDate.HasValue)
+        {
+            vehicle.GITExpiry = gitDate.Value.ToString("yyyy-MM-ddTHH:mm:ss");
+        }
+    }
+
+
+
+
+    private async Task LoadVehicleAsync()
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(vId))
+            {
+                var vResponse = await Fc.Child($"Vehicle/{vId}").OnceSingleAsync<Vehicle>();
+                if (vResponse != null)
+                {
+                    vehicle = vResponse;
+
+                    // If we have a Driver name but no UID, we'll need to set it up
+                    // for the correct format when users are loaded
+                    if (!string.IsNullOrEmpty(vehicle.Driver) && string.IsNullOrEmpty(vehicle.Uid))
+                    {
+                        // We'll match this up in LoadUsersAsync later
+                        Console.WriteLine($"Vehicle has Driver '{vehicle.Driver}' but no UID");
+                    }
+                }
+                else
+                {
+                    vehicle = new Vehicle();
+                }
+            }
+            else
+            {
+                vehicle = new Vehicle();
+            }
+        }
+        catch (Firebase.Database.FirebaseException ex)
+        {
+            Console.WriteLine($"Firebase error: {ex.Message}");
+            vehicle = new Vehicle();
+        }
+        StateHasChanged();
+    }
+
+
+    private async Task AddUpdateVehicle()
+    {
+        bool success = true;
+
+        try
+        {
+            // Process date fields
+            UpdateMOTExpiryString();
+            UpdateTAXExpiryString();
+            UpdateHRExpiryString();
+            UpdateGITExpiryString();
+
+            // Process driver information
+            if (!string.IsNullOrEmpty(vehicle.Driver) && vehicle.Driver.Contains("|"))
+            {
+                var driverUid = GetDriverUid(vehicle.Driver);
+                vehicle.Uid = driverUid;
+                vehicle.Driver = GetDriverDisplayName(vehicle.Driver);
+                Console.WriteLine($"Saving driver: {vehicle.Driver}, UID: {vehicle.Uid}");
+            }
+
+            // Ensure vehicle type is set
+            if (string.IsNullOrEmpty(vehicle.Type) && !string.IsNullOrEmpty(selectedVehicleType))
+            {
+                vehicle.Type = selectedVehicleType;
+                Console.WriteLine($"Setting vehicle type from selection: {vehicle.Type}");
+            }
+
+            if (!string.IsNullOrWhiteSpace(vId))
+            {
+                // Edit Mode
+                await Fc.Child($"Vehicle/{vId}").PutAsync(vehicle);
+                Console.WriteLine($"Updated vehicle with ID: {vId}");
+            }
+            else
+            {
+                // Add Mode
+                var result = await Fc.Child($"Vehicle").PostAsync(vehicle);
+                Console.WriteLine($"Added new vehicle with key: {result.Key}");
+            }
+
+            if (success)
+            {
+                NavManager.NavigateTo("/vehiclelist");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving vehicle: {ex.Message}");
+            // Handle error
+        }
+    }
+
+
+
+    private async Task LoadUsersAsync()
+    {
+        try
+        {
+            users.Clear();
+            Console.WriteLine("Loading users...");
+
+            // Get users from Firebase Auth
+            var pagedEnumerable = FirebaseAuth.DefaultInstance.ListUsersAsync(null);
+            var responses = pagedEnumerable.AsRawResponses().GetAsyncEnumerator();
+
+            while (await responses.MoveNextAsync())
+            {
+                var response = responses.Current;
+                foreach (var user in response.Users)
+                {
+                    if (!string.IsNullOrEmpty(user.DisplayName))
+                    {
+                        var option = new Option<string>
+                            {
+                                Value = $"{user.DisplayName}|{user.Uid}",
+                                Text = user.DisplayName
+                            };
+                        users.Add(option);
+                        Console.WriteLine($"Added user: {option.Text} with value: {option.Value}");
+                    }
+                }
+            }
+
+            Console.WriteLine($"Loaded {users.Count} users");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading users: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
+        }
+    }
+
+
+
+
+    
+}

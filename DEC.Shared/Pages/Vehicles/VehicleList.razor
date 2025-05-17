@@ -1,0 +1,256 @@
+﻿@page "/vehiclelist"
+
+@inject FirebaseClient Fc
+@inject NavigationManager NavManager
+@inject IDialogService DialogService
+
+@using DEC.Shared.Models
+@using Firebase.Database.Query
+@using System.Reactive.Linq
+
+@attribute [Authorize(Roles = "Admin, User")]
+
+<PageTitle>Vehicle List</PageTitle>
+
+<div class="row">
+    <h1>Vehicle List</h1>
+    <AuthorizeView Roles="Admin">
+        <Authorized>
+            <FluentButton Appearance="Appearance.Accent" OnClick="@AddVehicle">Add Vehicle</FluentButton>
+        </Authorized>
+    </AuthorizeView>
+</div>
+
+@if (isLoading)
+{
+    <FluentProgressRing />
+    <p>Loading data...</p>
+}
+else if (vehicleList == null || !vehicleList.Any())
+{
+    <p>No Data. Please add Vehicles</p>
+}
+else
+{
+    <div>
+        <FluentDataGrid Items="@vehicleList" Pagination="@pagination" TGridItem="Vehicle" RowSize="DataGridRowSize.Medium">
+            <TemplateColumn Title="Name">
+                <div>
+                    @context.Name
+                    <br />
+                    @context.Type    
+                </div>
+            </TemplateColumn>
+            @* <PropertyColumn Property="@(v => v.Name)" Sortable="true" Title="Name" /> *@
+            <PropertyColumn Property="@(v => v.RegNo)" Sortable="false" Title="Reg No." />
+            
+            <TemplateColumn Title="Status" Align="@Align.Center">
+                <div class="status-circle-container">
+                    <div class="status-circle @GetStatusClass(context.ValidStatus)" title="@context.ValidStatus">
+                        
+                    </div>
+                    @if (context.ValidStatus != "Good" && context.ValidStatus != "Error")
+                    {
+                        <div class="status-warning-indicator"></div>
+                    }
+                </div>
+            </TemplateColumn>
+
+            <TemplateColumn Title="Actions" Align="@Align.End">
+                <FluentIcon Value="@(new Icons.Regular.Size20.Edit())" Color="Color.Accent" OnClick="@(() => EditVehicle(context.Id))" />
+
+                <AuthorizeView Roles="Admin">
+                    <Authorized Context="auth">
+                        <span>&nbsp;</span>
+                        <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Color="Color.Warning" OnClick="@(() => DeleteVehicle(context.Id))" />
+
+                    </Authorized>
+                </AuthorizeView>
+            </TemplateColumn>
+        </FluentDataGrid>
+        <FluentPaginator State="@pagination" />
+    </div>
+}
+
+<style>
+    .status-circle-container {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 24px;
+    }
+
+    .status-circle {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        display: inline-block;
+        box-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
+    }
+
+    .status-warning-indicator {
+        position: absolute;
+        top: 3px;
+        right: -2px;
+        width: 6px;
+        height: 6px;
+        background-color: #ff0000;
+        border-radius: 50%;
+        box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+    }
+
+    .status-red {
+        background-color: #ff3333;
+        border: 1px solid #cc0000;
+    }
+
+    .status-amber {
+        background-color: #ffaa33;
+        border: 1px solid #cc7700;
+    }
+
+    .status-yellow {
+        background-color: #ffdd33;
+        border: 1px solid #ccaa00;
+    }
+
+    .status-good {
+        background-color: #33cc33;
+        border: 1px solid #006600;
+    }
+
+    .status-unknown {
+        background-color: #cccccc;
+        border: 1px solid #999999;
+    }
+</style>
+
+
+@code {
+    PaginationState pagination = new PaginationState()
+        {
+            ItemsPerPage = 10,
+        };
+
+    private IQueryable<Vehicle>? vehicleList;
+    private bool isLoading = true;
+    private List<Vehicle> vList = new List<Vehicle>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadVehicleDataAsync();
+    }
+
+    private async Task LoadVehicleDataAsync()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            vList.Clear();
+
+            var subscription = Fc.Child("Vehicle")
+            .AsObservable<Vehicle>()
+            .Subscribe(item =>
+            {
+                if (item.Object != null)
+                {
+                    item.Object.Id = item.Key;
+
+                    try
+                    {
+                        item.Object.UpdateVehicleStatus();   
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error updating vehicle status: {ex.Message}");
+                        item.Object.IsValid = false; // Set to false if there's an error
+                        item.Object.ValidStatus = "Error"; // Set to "Error" if there's an error"
+                    }
+
+                    vList.Add(item.Object);
+                    vehicleList = vList.AsQueryable();
+                    InvokeAsync(StateHasChanged);
+                }
+            });
+
+            await Task.Delay(2000);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading vehicle data: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void AddVehicle()
+    {
+        NavManager.NavigateTo("/addeditvehicle");
+    }
+
+    private void EditVehicle(string Id)
+    {
+        NavManager.NavigateTo($"/addeditvehicle/{Id}");
+    }
+
+    private async Task DeleteVehicle(string Id)
+    {
+        var vehicleToDelete = vehicleList.FirstOrDefault(v => v.Id == Id);
+        string vehicleName = vehicleToDelete?.Name ?? "this vehicle";
+
+        RenderFragment dialogContent = builder =>
+        {
+            builder.OpenElement(0, "div");
+            builder.AddAttribute(1, "style", "min-height: 6rem; padding: 1rem;");
+            builder.AddContent(2, $"Are you sure you want to delete vehicle '{vehicleName}'?");
+            builder.CloseElement();
+        };
+
+        var dialog = await DialogService.ShowDialogAsync(
+            dialogContent,
+            new DialogParameters
+            {
+                Title = "Confirm Delete",
+                Width = "400px",
+                PrimaryAction = "Delete",
+                SecondaryAction = "Cancel",
+                Modal = true
+            });
+
+        var result = await dialog.Result;
+        if (result == null || result.Cancelled)
+            return;
+
+        try
+        {
+            await Fc.Child($"Vehicle/{Id}").DeleteAsync();
+            await LoadVehicleDataAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting vehicle: {ex.Message}");
+        }
+    }
+
+    private string GetStatusClass(string status)
+    {
+        return status switch
+        {
+            "Red Warning" => "status-red",
+            "Amber Warning" => "status-amber",
+            "Yellow Warning" => "status-yellow",
+            "Good" => "status-good",
+            _ => "status-unknown"
+        };
+    }
+
+
+    
+
+}
