@@ -1,0 +1,102 @@
+﻿@page "/testupload"
+@using DEC.Shared.Services
+@using System.IO
+@inject IFirebaseStorageService FirebaseStorageService
+
+<h3>Test File Upload</h3>
+
+<div class="mb-3">
+    <label for="fileInput" class="form-label">Choose an image:</label>
+    <InputFile id="fileInput" OnChange="OnFileSelected" class="form-control" accept=".jpg,.jpeg,.png" />
+</div>
+
+@if (!string.IsNullOrEmpty(statusMessage))
+{
+    <div class="alert @statusClass" role="alert">
+        @statusMessage
+    </div>
+}
+
+@if (isUploading)
+{
+    <div class="progress mb-3">
+        <div class="progress-bar" role="progressbar" style="width: @($"{uploadProgress}%");" aria-valuenow="@uploadProgress" aria-valuemin="0" aria-valuemax="100">@uploadProgress%</div>
+    </div>
+}
+
+<div class="mb-3">
+    <button class="btn btn-primary" @onclick="UploadFile" disabled="@(selectedFile == null || isUploading)">Upload File</button>
+</div>
+
+@if (!string.IsNullOrEmpty(imageUrl))
+{
+    <div class="mb-3">
+        <label class="form-label">Image URL:</label>
+        <input type="text" class="form-control" value="@imageUrl" readonly />
+    </div>
+
+    <div class="mt-3">
+        <h4>Uploaded Image:</h4>
+        <img src="@imageUrl" alt="Uploaded image" style="max-width: 100%; max-height: 400px;" />
+    </div>
+}
+
+@code {
+    private IBrowserFile? selectedFile;
+    private string? imageUrl;
+    private string? statusMessage;
+    private string statusClass = "alert-info";
+    private bool isUploading = false;
+    private int uploadProgress = 0;
+
+    private void OnFileSelected(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+        statusMessage = $"File selected: {selectedFile.Name} ({selectedFile.Size} bytes)";
+        statusClass = "alert-info";
+    }
+
+    private async Task UploadFile()
+    {
+        if (selectedFile == null)
+            return;
+
+        try
+        {
+            isUploading = true;
+            uploadProgress = 10;
+            statusMessage = "Preparing to upload...";
+            statusClass = "alert-info";
+
+            // Generate a unique filename to avoid overwrites
+            string fileExtension = Path.GetExtension(selectedFile.Name);
+            string uniqueFileName = $"{Guid.NewGuid()}{fileExtension}";
+
+            // Open a stream for the file
+            using var fileStream = selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024); // 10 MB limit
+
+            // Update upload progress indicators
+            uploadProgress = 30;
+            statusMessage = "Uploading to Firebase Storage...";
+
+            // Upload the file using your existing service
+            imageUrl = await FirebaseStorageService.UploadFile(fileStream, uniqueFileName);
+
+            // Update status on success
+            uploadProgress = 100;
+            statusMessage = "File uploaded successfully!";
+            statusClass = "alert-success";
+        }
+        catch (Exception ex)
+        {
+            // Handle errors
+            statusMessage = $"Error uploading file: {ex.Message}";
+            statusClass = "alert-danger";
+            imageUrl = null;
+        }
+        finally
+        {
+            isUploading = false;
+        }
+    }
+}

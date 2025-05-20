@@ -5,7 +5,8 @@
         <FluentNavMenu Id="main-menu" Collapsible="true" Width="250" Title="Navigation menu" @bind-Expanded="expanded" CustomToggle="true">
             <FluentNavLink Href="/" Match="NavLinkMatch.All" Icon="@(new Icons.Regular.Size20.Home())" IconColor="Color.Accent">Home</FluentNavLink>
             <AuthorizeView>
-                <Authorized>            
+                <Authorized>
+                    <FluentNavLink Href="jobslist" Icon="@(new Icons.Regular.Size20.TasksApp())" IconColor="Color.Accent">Jobs</FluentNavLink>
                     <FluentNavLink Href="users" Icon="@(new Icons.Regular.Size20.People())" IconColor="Color.Accent">User List</FluentNavLink>
                     <FluentNavLink Href="nflist" Icon="@(new Icons.Regular.Size20.MoneyOff())" IconColor="Color.Accent">Non Factored</FluentNavLink>
                     <FluentNavLink Href="faq" Icon="@(new Icons.Regular.Size20.QuestionCircle())" IconColor="Color.Accent">FAQ</FluentNavLink>
@@ -13,6 +14,7 @@
                     <FluentNavGroup Expanded="false" Title="Settings" Icon="@(new Icons.Regular.Size20.Settings())" IconColor="Color.Accent">
                         <FluentNavLink Href="settheme" Icon="@(new Icons.Regular.Size20.ContentSettings())" IconColor="Color.Accent">Set App Theme</FluentNavLink>
                         <FluentNavLink Href="httptest" Icon="@(new Icons.Regular.Size20.NetworkCheck())" IconColor="Color.Accent">Test Network</FluentNavLink>
+                        <FluentNavLink Href="testupload" Icon="@(new Icons.Regular.Size20.ArrowUpload())" IconColor="Color.Accent">Test Upload</FluentNavLink>
                     </FluentNavGroup>
                     <FluentDivider></FluentDivider>
                     <FluentNavLink Href="logout" Icon="@(new Icons.Regular.Size20.SignOut())" IconColor="Color.Accent">Sign Out</FluentNavLink>

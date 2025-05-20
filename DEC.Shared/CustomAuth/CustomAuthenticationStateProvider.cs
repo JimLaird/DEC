@@ -14,6 +14,11 @@ using System.Threading.Tasks;
 
 namespace DEC.Shared.CustomAuth
 {
+    /// <summary>
+    /// Handles authentication state for Blazor applications using Firebase Authentication.
+    /// This class bridges Firebase authentication with Blazor's AuthenticationStateProvider
+    /// and implements account management functionality.
+    /// </summary>
     public class CustomAuthenticationStateProvider : AuthenticationStateProvider, IAccountManagement
     {
         private bool _authenticated = false;
@@ -27,13 +32,17 @@ namespace DEC.Shared.CustomAuth
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         };
-
+        /// <summary>
+        /// Maps Firebase custom attribute keys to role names used in claims.
+        /// For example, "IsAdmin" attribute from Firebase becomes "Admin" role in claims.
+        /// </summary>
         Dictionary<string, string> keyMap = new Dictionary<string, string>
         {
             { "IsAdmin", "Admin" },
             { "IsUser", "User" },
         };
 
+        
         public CustomAuthenticationStateProvider(FirebaseAuthClient firebaseAuthClient, ILocalStorageService localStorageService, HttpClient httpClient)
         {
             _firebaseAuthClient = firebaseAuthClient;
@@ -41,6 +50,11 @@ namespace DEC.Shared.CustomAuth
             _httpClient = httpClient;
         }
 
+        /// <summary>
+        /// Validates the current authentication token with Google's API and creates claims
+        /// based on user information including roles from custom attributes.
+        /// If validation fails, returns an unauthenticated state.
+        /// </summary>
         public override async Task<AuthenticationState> GetAuthenticationStateAsync()
         {
             _authenticated = false;
@@ -101,12 +115,23 @@ namespace DEC.Shared.CustomAuth
             return new AuthenticationState(user);
         }
 
+        /// <summary>
+        /// Convenience method to check if a user is currently authenticated.
+        /// </summary>
+        /// <returns>True if user is authenticated, otherwise false</returns>
         public async Task<bool> CheckAuthenticatedAsync()
         {
             await GetAuthenticationStateAsync();
             return _authenticated;
         }
 
+        /// <summary>
+        /// Creates a new user account in Firebase with the provided credentials.
+        /// </summary>
+        /// <param name="email">User's email address</param>
+        /// <param name="password">User's password</param>
+        /// <param name="username">User's display name</param>
+        /// <returns>FormResult indicating success or containing error details</returns>
         public async Task<FormResult> RegisterAsync(string email, string password, string username)
         {
             string[] defaultDetail = ["An unknown error prevented registreation"];
@@ -130,6 +155,13 @@ namespace DEC.Shared.CustomAuth
 
         }
 
+        /// <summary>
+        /// Authenticates a user with Firebase and stores the authentication token.
+        /// On successful login, the authentication state is updated.
+        /// </summary>
+        /// <param name="email">User's email address</param>
+        /// <param name="password">User's password</param>
+        /// <returns>FormResult indicating success or containing error details</returns>
         public async Task<FormResult> LoginAsync(string email, string password)
         {
             try
@@ -153,6 +185,10 @@ namespace DEC.Shared.CustomAuth
             };
         }
 
+        /// <summary>
+        /// Removes authentication data from local storage and signs out from Firebase.
+        /// Updates the authentication state to reflect the logout.
+        /// </summary>
         public async Task LogoutAsync()
         {
             await _localStorageService.RemoveItemAsync("userAuth");

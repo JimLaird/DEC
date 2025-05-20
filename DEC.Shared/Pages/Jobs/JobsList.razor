@@ -1,0 +1,54 @@
+﻿@page "/jobslist"
+
+@inject FirebaseClient Fc
+@inject NavigationManager NavManager
+@inject IDialogService DialogService
+
+@using Firebase.Database.Query
+@using System.Reactive.Linq
+
+@attribute [Authorize(Roles = "Admin, User")]
+
+<PageTitle>Jobs List</PageTitle>
+
+<div class="row">
+    <h1>Job List</h1>
+    <AuthorizeView Roles="Admin">
+        <Authorized>
+            <FluentButton Appearance="Appearance.Accent" OnClick="@AddJob">Add Job</FluentButton>
+        </Authorized>
+    </AuthorizeView>
+</div>
+
+@code {
+    PaginationState pagination = new PaginationState()
+        {
+            ItemsPerPage = 10,
+        };
+    
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadJobDataAsync();
+    }
+
+    private void AddJob()
+    {
+        // Navigate to the Add Job page
+    }
+
+    private void EditJob(string Id)
+    {
+        // Navigate to the Edit Job page with the specified Id
+    }
+
+    private async Task DeleteJob(string Id)
+    {
+        // Show a confirmation dialog before deleting the job
+
+    }
+
+    private async Task LoadJobDataAsync()
+    {
+        //  Load job data from Firebase
+    }
+}
