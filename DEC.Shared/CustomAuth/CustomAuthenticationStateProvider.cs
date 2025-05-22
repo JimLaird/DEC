@@ -1,6 +1,7 @@
 ﻿using Blazored.LocalStorage;
 using DEC.Shared.Models;
 using Firebase.Auth;
+using Firebase.Auth.Requests;
 using Microsoft.AspNetCore.Components.Authorization;
 using Newtonsoft.Json;
 using System;
@@ -199,7 +200,143 @@ namespace DEC.Shared.CustomAuth
             }
             NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
         }
-        
-        
+
+        public async Task<UserAuth> GetUserAuthAsync()
+        {
+            return await _localStorageService.GetItemAsync<UserAuth>("userAuth");
+        }
+
+        public async Task<bool> IsTokenValidAsync()
+        {
+            var userAuth = await GetUserAuthAsync();
+            if (userAuth?.Credential == null || string.IsNullOrEmpty(userAuth.Credential.IdToken))
+            {
+                return false;
+            }
+
+            try
+            {
+                // Try to validate the token - if it works, the token is valid
+                var body = new StringContent($"{{\"idToken\":\"{userAuth.Credential.IdToken}\"}}", Encoding.UTF8, "application/json");
+                var response = await _httpClient.PostAsync(Cnst.GoogleApiUrl, body);
+                response.EnsureSuccessStatusCode();
+                return true;
+            }
+            catch
+            {
+                // If validation fails, token is likely expired
+                return false;
+            }
+        }
+
+        public async Task<bool> RefreshTokenAsync()
+        {
+            try
+            {
+                var userAuth = await GetUserAuthAsync();
+                if (userAuth?.Credential == null || string.IsNullOrEmpty(userAuth.Credential.RefreshToken))
+                {
+                    return false;
+                }
+
+                // Call Firebase refresh token endpoint directly
+                var refreshTokenRequest = new
+                {
+                    grant_type = "refresh_token",
+                    refresh_token = userAuth.Credential.RefreshToken
+                };
+
+                var refreshContent = new StringContent(
+                    JsonConvert.SerializeObject(refreshTokenRequest),
+                    Encoding.UTF8,
+                    "application/json");
+
+                var response = await _httpClient.PostAsync(
+                    $"https://securetoken.googleapis.com/v1/token?key={Cnst.FirebaseApiKey}",
+                    refreshContent);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var responseJson = await response.Content.ReadAsStringAsync();
+                    var tokenData = JsonConvert.DeserializeObject<RefreshTokenResponse>(responseJson);
+
+                    // Update the token in the user auth object
+                    userAuth.Credential.IdToken = tokenData.IdToken;
+                   
+
+                    userAuth.Credential.ExpiresIn = int.Parse(tokenData.ExpiresIn);
+              
+
+                    // Save the updated user auth
+                    await _localStorageService.SetItemAsync("userAuth", userAuth);
+                    NotifyAuthenticationStateChanged(GetAuthenticationStateAsync());
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error refreshing token: {ex.Message}");
+            }
+
+            return false;
+        }
+
+        private class RefreshTokenResponse
+        {
+            [JsonProperty("id_token")]
+            public string IdToken { get; set; }
+
+            [JsonProperty("refresh_token")]
+            public string RefreshToken { get; set; }
+
+            [JsonProperty("expires_in")]
+            public string ExpiresIn { get; set; }
+        }
+
+        /// <summary>
+        /// Gets a valid Firebase authentication token, refreshing if necessary.
+        /// </summary>
+        /// <returns>A valid Firebase ID token or empty string if authentication fails</returns>
+        public async Task<string> GetAuthTokenAsync()
+        {
+            try
+            {
+                // Get the user authentication from local storage
+                var userAuth = await GetUserAuthAsync();
+
+                if (userAuth?.Credential != null && !string.IsNullOrEmpty(userAuth.Credential.IdToken))
+                {
+                    // Calculate expiration time from Created + ExpiresIn (seconds)
+                    var expirationTime = userAuth.Credential.Created.AddSeconds(userAuth.Credential.ExpiresIn);
+
+                    // Check if token is about to expire (less than 5 minutes remaining)
+                    if (expirationTime <= DateTime.UtcNow.AddMinutes(5))
+                    {
+                        // Token is about to expire, try to refresh it
+                        bool refreshed = await RefreshTokenAsync();
+
+                        if (refreshed)
+                        {
+                            // Get the fresh token after refresh
+                            userAuth = await GetUserAuthAsync();
+                        }
+                        else
+                        {
+                            return string.Empty;
+                        }
+                    }
+
+                    return userAuth.Credential.IdToken;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error getting auth token: {ex.Message}");
+            }
+
+            return string.Empty;
+        }
+
+
     }
 }

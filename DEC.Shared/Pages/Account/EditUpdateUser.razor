@@ -1,6 +1,10 @@
 ﻿@page "/editupdateuser"
 @page "/editupdateuser/{uid}"
 
+@using DEC.Shared.Services
+@using System.IO
+
+@inject IFirebaseStorageService FirebaseStorageService
 @inject NavigationManager NavManager
 @inject IMessageService MessageService
 
@@ -24,6 +28,32 @@
             <div>
                 <FluentTextField Name="username" @bind-Value="@userModel.DisplayName" Label="Display Name" Required="true" TextFieldType="TextFieldType.Text" />
                 <FluentValidationMessage For="@(() => userModel.DisplayName)" />
+            </div>
+            <div>
+                <FluentInputFile @ref="@myFileByStream"
+                                 AnchorId="MyUploadStream"
+                                 DragDropZoneVisible="false"
+                                 Mode="InputFileMode.Stream"
+                                 Multiple="false"
+                                 MaximumFileSize="@(10 * 1024 * 1024)"
+                                 Accept=".jpg, .jpeg, .png"
+                                 OnFileUploaded="@OnFileUploadedAsync"
+                                 OnCompleted="@OnCompleted" />
+
+                <FluentProgress Min="0"
+                                Max="100"
+                                Value="@progressPercent"
+                                Visible="@(progressPercent > 0)" />
+
+                <FluentLabel Alignment="HorizontalAlignment.Center">
+                    @progressTitle
+                </FluentLabel>
+
+                <FluentButton Appearance="Appearance.Accent" Id="MyUploadStream">UploadFile</FluentButton>
+            </div>
+            <div>
+                <FluentTextField Name="photoUrl" @bind-Value="@userModel.PhotoUrl" Label="Photo URL" TextFieldType="TextFieldType.Text" />
+                <FluentValidationMessage For="@(() => userModel.PhotoUrl)" />
             </div>
             <div>
                 <FluentTextField Name="email" @bind-Value="@userModel.Email" Label="Email" Required="true" TextFieldType="TextFieldType.Email" />
@@ -67,12 +97,67 @@
     private bool isUpdating = false;
     private bool isErrorVisible = false;
     private string errorMessage = string.Empty;
+    FluentInputFile? myFileByStream = default;
+    int? progressPercent;
+    string? progressTitle;
+    private IBrowserFile? selectedFile;
+    private string? imageUrl;
 
     Dictionary<string, string> keyMap = new Dictionary<string, string>
     {
         {"IsAdmin", "Admin"},
         {"IsUser", "User"}
     };
+
+    async Task OnFileUploadedAsync(FluentInputFileEventArgs file)
+    {
+        progressPercent = file.ProgressPercent;
+        progressTitle = file.ProgressTitle;
+
+        var localFile = Path.GetTempFileName() + file.Name;
+
+        // Generate a unique filename to avoid overwrites
+        string fileExtension = Path.GetExtension(file.Name);
+        string uniqueFileName = $"{Guid.NewGuid()}{fileExtension}";
+
+
+        // Files.Add(localFile);
+
+        // Write to the FileStream
+        // See other samples: https://docs.microsoft.com/en-us/aspnet/core/blazor/file-uploads
+        // await using FileStream fs = new(localFile, FileMode.Create);
+        // await file.Stream!.CopyToAsync(fs);
+        // await file.Stream!.DisposeAsync();
+
+        await using FileStream fs = new(localFile, FileMode.Create);
+        imageUrl = await FirebaseStorageService.UploadFile(file.Stream!, uniqueFileName);
+
+        if (!string.IsNullOrEmpty(imageUrl))
+        {
+            // You can add a FluentMessageBar or toast notification here
+            Console.WriteLine($"File uploaded successfully: {imageUrl}");
+            userModel.PhotoUrl = imageUrl;
+        }
+        else
+        {
+            Console.WriteLine("File upload failed.");
+        }
+        
+        
+        await fs.DisposeAsync();
+    }
+
+    void OnCompleted(IEnumerable<FluentInputFileEventArgs> files)
+    {
+        progressPercent = myFileByStream!.ProgressPercent;
+        progressTitle = myFileByStream!.ProgressTitle;
+
+        // For the demo, delete these files.
+        // foreach (var file in Files)
+        // {
+        //     File.Delete(file);
+        // }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -156,7 +241,7 @@
                         Email = userModel.Email,
                         DisplayName = userModel.DisplayName,
                         PhoneNumber = userModel.PhoneNumber,
-                        
+                        PhotoUrl = userModel.PhotoUrl,
                     };
 
                 // Update user in Firebase

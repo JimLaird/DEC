@@ -3,8 +3,14 @@
 @inject NavigationManager NavManager
 @inject IDialogService DialogService
 @inject IPhoneDiallerService PhoneDialler
+@inject AuthenticationStateProvider AuthStateProvider
 
-@attribute [Authorize(Roles ="Admin, User")]
+@using DEC.Shared.CustomAuth
+@using System.Security.Claims
+
+@implements IDisposable
+
+@attribute [Authorize(Roles = "Admin, User")]
 
 <PageTitle>User List</PageTitle>
 
@@ -13,7 +19,13 @@
 <div>
 
     <FluentDataGrid Items="@userList" Pagination="@pagination" MultiLine>
-        <PropertyColumn Property="@(p => p.DisplayName)" Sortable="true" Title="User" />
+        <TemplateColumn Title="User">
+            <FluentPersona Image="@context.PhotoUrl"
+                           Name="@context.DisplayName"
+                           ImageSize="50px"
+                           Status="@(context.IsSignedIn ? PresenceStatus.Available : PresenceStatus.Busy)"
+                           StatusSize="PresenceBadgeSize.Small" />
+        </TemplateColumn>
         <TemplateColumn Title="Roles">
             <FluentStack Orientation="Orientation.Horizontal">
                 @if (context.Roles != null && context.Roles.Count > 0)
@@ -38,9 +50,9 @@
             <span>&nbsp;</span>
             <FluentIcon Value="@(new Icons.Regular.Size20.Edit())" Color="Color.Accent" OnClick="@(() => EditUser(context))" />
             <AuthorizeView Roles="Admin">
-                <Authorized Context="auth">        
-                <span>&nbsp;</span>
-                <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Color="Color.Warning" OnClick="@(() => DeleteUser(context))"/>
+                <Authorized Context="auth">
+                    <span>&nbsp;</span>
+                    <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Color="Color.Warning" OnClick="@(() => DeleteUser(context))" />
                 </Authorized>
             </AuthorizeView>
         </TemplateColumn>
@@ -54,8 +66,9 @@
             ItemsPerPage = 5,
         };
 
-
     private IQueryable<Info> userList;
+    private Dictionary<string, bool> signedInUsers = new Dictionary<string, bool>();
+    private string currentUserEmail;
 
     Dictionary<string, string> keyMap = new Dictionary<string, string>
     {
@@ -63,9 +76,31 @@
         {"IsUser", "User"}
     };
 
+
     protected override async Task OnInitializedAsync()
     {
+        // Subscribe to authentication state changes
+        ((AuthenticationStateProvider)AuthStateProvider).AuthenticationStateChanged += AuthenticationStateChangedHandler;
+
+        await UpdateAuthenticationStateAsync();
+
         await LoadUserDataAsync();
+    }
+
+    private async Task UpdateAuthenticationStateAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        currentUserEmail = authState.User.FindFirst(ClaimTypes.Email)?.Value;
+
+        // Clear the signed-in dictionary
+        signedInUsers.Clear();
+    }
+
+    private async void AuthenticationStateChangedHandler(Task<AuthenticationState> task)
+    {
+        await UpdateAuthenticationStateAsync();
+        await LoadUserDataAsync();
+        await InvokeAsync(StateHasChanged);
     }
 
     private async Task LoadUserDataAsync()
@@ -81,6 +116,10 @@
                 var response = responses.Current;
                 foreach (var user in response.Users)
                 {
+                    // Determine if this is the signed-in user by comparing emails
+                    bool isCurrentUser = !string.IsNullOrEmpty(currentUserEmail) &&
+                                         user.Email.Equals(currentUserEmail, StringComparison.OrdinalIgnoreCase);
+
                     Info userModel = new()
                         {
                             Uid = user.Uid,
@@ -89,16 +128,23 @@
                             PhoneNumber = user.PhoneNumber,
                             PhotoUrl = user.PhotoUrl,
                             IsEmailVerified = user.EmailVerified,
-                            Roles = user.CustomClaims.Where(x => (bool)x.Value).ToList().Select(s => keyMap[s.Key]).ToList()
+                            Roles = user.CustomClaims.Where(x => (bool)x.Value).ToList().Select(s => keyMap[s.Key]).ToList(),
+                            IsSignedIn = isCurrentUser
                         };
                     userInfoList.Add(userModel);
+                    // Also store in our dictionary for quick lookup
+                    if (isCurrentUser)
+                    {
+                        signedInUsers[user.Uid] = true;
+                    }
                 }
                 userList = userInfoList.ToList().AsQueryable();
-            };
+            }
+            ;
         }
         catch (Exception ex)
         {
-
+            Console.WriteLine($"Error loading users: {ex.Message}");
         }
     }
 
@@ -117,7 +163,7 @@
 
         if (!success)
         {
-            
+
             await DialogService.ShowWarningAsync(
                 $"Unable to place call to {p.DisplayName}. Make sure the device has calling capabilities.",
                 "Call Failed");
@@ -164,7 +210,7 @@
                     PreventScroll = true,
                     Modal = true
                 });
-        
+
         var result = await dialog.Result;
         if (result == null || result.Cancelled)
             return;
@@ -184,5 +230,9 @@
         }
     }
 
-
+    public void Dispose()
+    {
+        // Unsubscribe from the authentication state changes when component is disposed
+        ((AuthenticationStateProvider)AuthStateProvider).AuthenticationStateChanged -= AuthenticationStateChangedHandler;
+    }
 }

@@ -3,10 +3,14 @@
 @inject FirebaseClient Fc
 @inject NavigationManager NavManager
 @inject IDialogService DialogService
+@inject ILocalStorageService LocalStorageService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IAccountManagement Acct
 
 @using DEC.Shared.Models
 @using Firebase.Database.Query
 @using System.Reactive.Linq
+@using Blazored.LocalStorage
 
 @attribute [Authorize(Roles = "Admin, User")]
 
@@ -87,20 +91,48 @@ else
             // Clear any existing data
             nfList.Clear();
 
+            Fc = new FirebaseClient(Cnst.FirebaseDatabaseUrl, new FirebaseOptions()
+                {
+                    AuthTokenAsyncFactory = Acct.GetAuthTokenAsync
+                });
+
             // Store the subscription for proper cleanup
             var subscription = Fc.Child("NF")
                 .AsObservable<NonFactored>()
-                .Subscribe(item =>
-                {
-                    if (item.Object != null)
+                .Subscribe(
+                    // OnNext handler
+                    item =>
                     {
-                        item.Object.Id = item.Key;
-                        nfList.Add(item.Object);
-                        nonFactoredList = nfList.AsQueryable();
-                        FilterData(); // Apply any current filters
-                        InvokeAsync(StateHasChanged); // Notify UI of changes
-                    }
-                });
+                        if (item.Object != null)
+                        {
+                            item.Object.Id = item.Key;
+                            nfList.Add(item.Object);
+                            nonFactoredList = nfList.AsQueryable();
+                            FilterData(); // Apply any current filters
+                            InvokeAsync(StateHasChanged); // Notify UI of changes
+                        }
+                    },
+                    // OnError handler
+                    async error =>
+                    {
+                        Console.WriteLine($"Subscription error: {error.Message}");
+
+                        // Check if the error is an authentication error
+                        if (error is Firebase.Database.FirebaseException fbEx &&
+                            (fbEx.Message.Contains("401") || fbEx.Message.Contains("Unauthorized")))
+                        {
+                            // Force token refresh and retry
+                            bool refreshed = await Acct.RefreshTokenAsync();
+                            if (refreshed)
+                            {
+                                await InvokeAsync(() => LoadNFDataAsync()); // Retry loading data
+                            }
+                            else
+                            {
+                                await InvokeAsync(() => NavManager.NavigateTo("/login"));
+                            }
+                        }
+                    });
 
             // Wait a moment for initial data to load
             await Task.Delay(2000);
@@ -108,6 +140,23 @@ else
         catch (Exception ex)
         {
             Console.WriteLine($"Firebase error: {ex.Message}");
+
+            // If there's an authentication error, try to refresh the token
+            if (ex.Message.Contains("401") || ex.Message.Contains("Unauthorized"))
+            {
+                bool refreshed = await Acct.RefreshTokenAsync();
+
+                if (refreshed)
+                {
+                    // If refresh succeeded, retry loading data
+                    await LoadNFDataAsync();
+                }
+                else
+                {
+                    // If refresh failed, redirect to login
+                    NavManager.NavigateTo("/login");
+                }
+            }
         }
         finally
         {
@@ -115,6 +164,7 @@ else
             StateHasChanged();
         }
     }
+
 
     private void OnSearchInput(ChangeEventArgs e)
     {
@@ -188,4 +238,8 @@ else
             Console.WriteLine($"Error deleting client: {ex.Message}");
         }
     }
+
+    
+
+
 }

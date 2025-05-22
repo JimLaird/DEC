@@ -3,10 +3,15 @@
 @using Firebase.Database.Query
 @using Firebase.Auth
 @using System.Security.Claims
+@using System.Reactive.Linq
+@using Blazored.LocalStorage
 
 @inject IFormFactor FormFactor
 @inject AuthenticationStateProvider AuthStateProvider
+@inject ILocalStorageService LocalStorageService
 @inject FirebaseClient Fc
+@inject IAccountManagement Acct
+@inject NavigationManager NavManager
 
 @attribute [Authorize]
 
@@ -135,6 +140,11 @@
 
             var vehicles = new List<Vehicle>();
 
+            Fc = new FirebaseClient(Cnst.FirebaseDatabaseUrl, new FirebaseOptions()
+                {
+                    AuthTokenAsyncFactory = Acct.GetAuthTokenAsync
+                });
+
             // Get all vehicles from Firebase
             var vehicleData = await Fc.Child("Vehicle").OnceAsync<Vehicle>();
             
@@ -177,4 +187,6 @@
             StateHasChanged();
         }
     }
+
+    
 }

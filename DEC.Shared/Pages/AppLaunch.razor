@@ -13,11 +13,24 @@ Loading...
     {
         if (await Acct.CheckAuthenticatedAsync())
         {
-            //  Extract User Info
+            // Extract User Info
+            var userAuth = await Acct.GetUserAuthAsync();
 
-            //  Check Token Validity
+            // Check Token Validity
+            bool isTokenValid = await Acct.IsTokenValidAsync();
 
-            //  If Token Expired, Call Refresh Token
+            // If Token Expired, Call Refresh Token
+            if (!isTokenValid)
+            {
+                bool refreshed = await Acct.RefreshTokenAsync();
+                if (!refreshed)
+                {
+                    // Token couldn't be refreshed, redirect to login
+                    await Acct.LogoutAsync();
+                    NavManager.NavigateTo("/login");
+                    return;
+                }
+            }
 
 
             NavManager.NavigateTo("/dashboard");

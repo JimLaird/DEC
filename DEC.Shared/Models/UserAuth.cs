@@ -19,7 +19,8 @@ namespace DEC.Shared.Models
         public string DisplayName { get; set; }
         public string Email { get; set; }
         public bool IsEmailVerified { get; set; }
-        public object PhotoUrl { get; set; }
+        public bool IsSignedIn { get; set; }
+        public string PhotoUrl { get; set; }
         public string PhoneNumber { get; set; }
         public List<string> Roles { get; set; } = new List<string>();
     }

@@ -3,9 +3,14 @@
 @inject FirebaseClient Fc
 @inject NavigationManager NavManager
 @inject IDialogService DialogService
+@inject ILocalStorageService LocalStorageService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IAccountManagement Acct
 
+@using DEC.Shared.Models
 @using Firebase.Database.Query
 @using System.Reactive.Linq
+@using Blazored.LocalStorage
 
 @attribute [Authorize(Roles = "Admin, User")]
 
@@ -150,6 +155,11 @@ else
 
             vList.Clear();
 
+            Fc = new FirebaseClient(Cnst.FirebaseDatabaseUrl, new FirebaseOptions()
+                {
+                    AuthTokenAsyncFactory = Acct.GetAuthTokenAsync
+                });
+
             var subscription = Fc.Child("Vehicle")
             .AsObservable<Vehicle>()
             .Subscribe(item =>
@@ -248,7 +258,6 @@ else
             _ => "status-unknown"
         };
     }
-
 
     
 

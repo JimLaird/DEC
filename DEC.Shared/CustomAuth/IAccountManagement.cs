@@ -13,33 +13,18 @@ namespace DEC.Shared.CustomAuth
     /// </summary>
     public interface IAccountManagement
     {
-        /// <summary>
-        /// Creates a new user account with the provided credentials.
-        /// </summary>
-        /// <param name="email">The user's email address</param>
-        /// <param name="password">The user's password</param>
-        /// <param name="username">The user's display name</param>
-        /// <returns>A FormResult indicating success or containing error details</returns>
-        public Task<FormResult> RegisterAsync(string email, string password, string username);
+        Task<bool> CheckAuthenticatedAsync();
+        Task<FormResult> LoginAsync(string email, string password);
+        Task<FormResult> RegisterAsync(string email, string password, string username);
+        Task LogoutAsync();
+        Task<UserAuth> GetUserAuthAsync();
+        Task<bool> IsTokenValidAsync();
+        Task<bool> RefreshTokenAsync();
 
         /// <summary>
-        /// Authenticates a user with the provided credentials.
+        /// Gets a valid Firebase authentication token, refreshing if necessary.
         /// </summary>
-        /// <param name="email">The user's email address</param>
-        /// <param name="password">The user's password</param>
-        /// <returns>A FormResult indicating success or containing error messages</returns>
-        public Task<FormResult> LoginAsync(string email, string password);
-
-        /// <summary>
-        /// Terminates the current user session and clears authentication state.
-        /// </summary>
-        /// <returns>A Task representing the asynchronous operation</returns>
-        public Task LogoutAsync();
-
-        /// <summary>
-        /// Verifies if the current user has a valid authenticated session.
-        /// </summary>
-        /// <returns>True if the user is authenticated, otherwise false</returns>
-        public Task<bool> CheckAuthenticatedAsync();
+        /// <returns>A valid Firebase ID token or empty string if authentication fails</returns>
+        Task<string> GetAuthTokenAsync();
     }
 }
