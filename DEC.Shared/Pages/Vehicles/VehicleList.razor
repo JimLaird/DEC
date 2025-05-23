@@ -61,12 +61,12 @@ else
             </TemplateColumn>
 
             <TemplateColumn Title="Actions" Align="@Align.End">
-                <FluentIcon Value="@(new Icons.Regular.Size20.Edit())" Color="Color.Accent" OnClick="@(() => EditVehicle(context.Id))" />
+                <FluentIcon Value="@(new Icons.Regular.Size20.Edit())" Color="Color.Accent" OnClick="@(() => EditVehicle(context.Id))" Title="Edit" />
 
                 <AuthorizeView Roles="Admin">
                     <Authorized Context="auth">
                         <span>&nbsp;</span>
-                        <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Color="Color.Warning" OnClick="@(() => DeleteVehicle(context.Id))" />
+                        <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Color="Color.Warning" OnClick="@(() => DeleteVehicle(context.Id))" Title="Delete" />
 
                     </Authorized>
                 </AuthorizeView>
@@ -143,6 +143,11 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        Fc = new FirebaseClient(Cnst.FirebaseDatabaseUrl, new FirebaseOptions()
+        {
+            AuthTokenAsyncFactory = Acct.GetAuthTokenAsync
+        });
+
         await LoadVehicleDataAsync();
     }
 
@@ -155,10 +160,7 @@ else
 
             vList.Clear();
 
-            Fc = new FirebaseClient(Cnst.FirebaseDatabaseUrl, new FirebaseOptions()
-                {
-                    AuthTokenAsyncFactory = Acct.GetAuthTokenAsync
-                });
+            
 
             var subscription = Fc.Child("Vehicle")
             .AsObservable<Vehicle>()

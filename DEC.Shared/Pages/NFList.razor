@@ -41,17 +41,18 @@ else if (filteredNonFactoredList == null || !filteredNonFactoredList.Any())
 else
 {
     <div>
-        <FluentDataGrid Items="@filteredNonFactoredList" Pagination="@pagination" TGridItem="NonFactored">
+        <FluentDataGrid Items="@filteredNonFactoredList" Pagination="@pagination" TGridItem="NonFactored" ItemSize="46">
             <PropertyColumn Property="@(n => n.Name)" Sortable="true" Title="Client Name" SortBy="@rankSort" />
             <PropertyColumn Property="@(n => n.Cx)" Sortable="true" Title="CX No." />
 
             <TemplateColumn Title="Actions">
-                <FluentIcon Value="@(new Icons.Regular.Size20.Edit())" Color="Color.Accent" OnClick="@(() => EditNF(context.Id))" />
+                
+                <FluentIcon Value="@(new Icons.Regular.Size16.Edit())" Color="Color.Accent" OnClick="@(() => EditNF(context.Id))" Title="Edit" />
 
                 <AuthorizeView Roles="Admin">
                     <Authorized Context="auth">
                         <span>&nbsp;</span>
-                        <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Color="Color.Warning" OnClick="@(() => DeleteNF(context.Id))" />
+                        <FluentIcon Value="@(new Icons.Regular.Size16.Delete())" Color="Color.Warning" OnClick="@(() => DeleteNF(context.Id))" Title="Delete" />
                     </Authorized>
                 </AuthorizeView>
             </TemplateColumn>
@@ -77,6 +78,11 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        Fc = new FirebaseClient(Cnst.FirebaseDatabaseUrl, new FirebaseOptions()
+        {
+            AuthTokenAsyncFactory = Acct.GetAuthTokenAsync
+        });
+
         await LoadNFDataAsync();
         filteredNonFactoredList = nonFactoredList; // Initialize filtered list
     }
@@ -91,10 +97,7 @@ else
             // Clear any existing data
             nfList.Clear();
 
-            Fc = new FirebaseClient(Cnst.FirebaseDatabaseUrl, new FirebaseOptions()
-                {
-                    AuthTokenAsyncFactory = Acct.GetAuthTokenAsync
-                });
+            
 
             // Store the subscription for proper cleanup
             var subscription = Fc.Child("NF")

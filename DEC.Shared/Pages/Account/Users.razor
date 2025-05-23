@@ -46,13 +46,13 @@
             </FluentStack>
         </TemplateColumn>
         <TemplateColumn Title="Actions">
-            <FluentIcon Value="@(new Icons.Regular.Size20.PhoneArrowRight())" Color="Color.Accent" OnClick="@(() => CallUser(context))" />
+            <FluentIcon Value="@(new Icons.Regular.Size20.PhoneArrowRight())" Color="Color.Accent" OnClick="@(() => CallUser(context))" Title="Call User" />
             <span>&nbsp;</span>
-            <FluentIcon Value="@(new Icons.Regular.Size20.Edit())" Color="Color.Accent" OnClick="@(() => EditUser(context))" />
+            <FluentIcon Value="@(new Icons.Regular.Size20.Edit())" Color="Color.Accent" OnClick="@(() => EditUser(context))" Title="Edit" />
             <AuthorizeView Roles="Admin">
                 <Authorized Context="auth">
                     <span>&nbsp;</span>
-                    <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Color="Color.Warning" OnClick="@(() => DeleteUser(context))" />
+                    <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Color="Color.Warning" OnClick="@(() => DeleteUser(context))" Title="Delete" />
                 </Authorized>
             </AuthorizeView>
         </TemplateColumn>

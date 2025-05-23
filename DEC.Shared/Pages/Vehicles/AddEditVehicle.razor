@@ -4,10 +4,13 @@
 @attribute [Authorize(Roles = "Admin")]
 
 @using Firebase.Auth
-
+@using Blazored.LocalStorage
 
 @inject FirebaseClient Fc
 @inject NavigationManager NavManager
+@inject ILocalStorageService LocalStorageService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IAccountManagement Acct
 
 @using Firebase.Database.Query
 
@@ -217,6 +220,11 @@
 
     protected override async Task OnInitializedAsync()
     {
+        Fc = new FirebaseClient(Cnst.FirebaseDatabaseUrl, new FirebaseOptions()
+        {
+            AuthTokenAsyncFactory = Acct.GetAuthTokenAsync
+        });
+
         try
         {
             // Clear any previously selected values

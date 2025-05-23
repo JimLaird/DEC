@@ -5,8 +5,12 @@
 
 @inject FirebaseClient Fc
 @inject NavigationManager NavManager
+@inject ILocalStorageService LocalStorageService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IAccountManagement Acct
 
 @using Firebase.Database.Query
+@using Blazored.LocalStorage
 
 <FluentStack Orientation="Orientation.Vertical">
     <h1>@(!string.IsNullOrWhiteSpace(nfId) ? "Update" : "Add") NF Client</h1>
@@ -43,13 +47,25 @@
 
 </FluentStack>
 @code {
+
     private NonFactored nfClient = null!;
+
+
+
+   
 
     [Parameter]
     public string? nfId { get; set; }
+    
 
     protected override async Task OnInitializedAsync()
     {
+        
+        Fc = new FirebaseClient(Cnst.FirebaseDatabaseUrl, new FirebaseOptions()
+        {
+            AuthTokenAsyncFactory = Acct.GetAuthTokenAsync
+        });
+
         await LoadNFAsync();
     }
 
@@ -59,6 +75,7 @@
         {
             if (!string.IsNullOrWhiteSpace(nfId))
             {
+
                 var nfResponse = await Fc.Child($"NF/{nfId}").OnceSingleAsync<NonFactored>();
                 if (nfResponse != null)
                 {
@@ -88,6 +105,8 @@
 
         try
         {
+            
+
             if (!string.IsNullOrWhiteSpace(nfId))
             //  Edit Mode
             {
