@@ -3,8 +3,12 @@
 @inject FirebaseClient Fc
 @inject NavigationManager NavManager
 @inject IDialogService DialogService
+@inject ILocalStorageService LocalStorageService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IAccountManagement Acct
 
 @using Firebase.Database.Query
+@using Blazored.LocalStorage
 @using System.Reactive.Linq
 
 @attribute [Authorize(Roles = "Admin, User")]
@@ -20,35 +24,150 @@
     </AuthorizeView>
 </div>
 
+@if (isLoading)
+{
+    <FluentProgressRing />
+    <p>Loading data...</p>
+}
+else if (jobList == null || !jobList.Any())
+{
+    <p>No Data. Please add Jobs</p>
+}
+else
+{
+    <div>
+        <FluentDataGrid Items="@jobList" Pagination="@pagination" TGridItem="Job" RowSize="DataGridRowSize.Medium">
+            <TemplateColumn Title="Summary">
+                <div>
+                    @context.Summary
+                    <br />
+                    <span style="color: red">@(!context.IsAllocated ? "Not Allocated" : "Allocated to: " + context.Driver)</span>
+                </div>
+            </TemplateColumn>
+
+            <TemplateColumn Title="Actions" Align="@Align.End">
+                <FluentIcon Value="@(new Icons.Regular.Size20.Edit())" Color="Color.Accent" OnClick="@(() => EditJob(context.Id))" Title="Edit" />
+
+                <AuthorizeView Roles="Admin">
+                    <Authorized Context="auth">
+                        <span>&nbsp;</span>
+                        <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Color="Color.Warning" OnClick="@(() => DeleteJob(context.Id))" Title="Delete" />
+
+                    </Authorized>
+                </AuthorizeView>
+            </TemplateColumn>
+        </FluentDataGrid>
+        <FluentPaginator State="@pagination" />
+    </div>
+
+}
+
 @code {
     PaginationState pagination = new PaginationState()
         {
             ItemsPerPage = 10,
         };
-    
+
+    private IQueryable<Job>? jobList;
+    private bool isLoading = true;
+    private List<Job> jList = new List<Job>();
+
+
+
     protected override async Task OnInitializedAsync()
     {
+        Fc = new FirebaseClient(Cnst.FirebaseDatabaseUrl, new FirebaseOptions()
+        {
+            AuthTokenAsyncFactory = Acct.GetAuthTokenAsync
+        });
         await LoadJobDataAsync();
     }
 
     private void AddJob()
     {
-        // Navigate to the Add Job page
+        NavManager.NavigateTo("/addeditjob");
     }
 
     private void EditJob(string Id)
     {
-        // Navigate to the Edit Job page with the specified Id
+        NavManager.NavigateTo($"/addeditjob/{Id}");
     }
 
     private async Task DeleteJob(string Id)
     {
         // Show a confirmation dialog before deleting the job
+        var jobToDelete = jobList.FirstOrDefault(j => j.Id == Id);
+        string jobName = jobToDelete?.Summary ?? "this job";
 
+        RenderFragment dialogContent = builder =>
+        {
+            builder.OpenElement(0, "div");
+            builder.AddAttribute(1, "style", "min-height: 6rem; padding: 1rem;");
+            builder.AddContent(2, $"Are you sure you want to delete job '{jobName}'?");
+            builder.CloseElement();
+        };
+
+        var dialog = await DialogService.ShowDialogAsync(
+            dialogContent,
+            new DialogParameters
+            {
+                Title = "Confirm Delete",
+                Width = "400px",
+                PrimaryAction = "Delete",
+                SecondaryAction = "Cancel",
+                Modal = true
+            });
+
+        var result = await dialog.Result;
+        if (result == null || result.Cancelled)
+            return;
+
+        try
+        {
+            await Fc.Child($"Job/{Id}").DeleteAsync();
+            await LoadJobDataAsync();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error deleting job: {ex.Message}");
+        }
     }
 
     private async Task LoadJobDataAsync()
     {
         //  Load job data from Firebase
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            jList.Clear();
+
+            var subscription = Fc.Child("Job")
+                .AsObservable<Job>()
+                .Subscribe(item =>
+                {
+                    if (item.Object != null)
+                    {
+                        item.Object.Id = item.Key;
+                        jList.Add(item.Object);
+
+                        jobList = jList.AsQueryable();
+                        InvokeAsync(StateHasChanged);
+                    }
+                });
+
+            await Task.Delay(2000);
+        }
+        catch (Exception ex)
+        {
+            // Handle exceptions, e.g., show an error message
+            Console.WriteLine($"Error loading job data: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            await InvokeAsync(StateHasChanged);
+        }
     }
 }

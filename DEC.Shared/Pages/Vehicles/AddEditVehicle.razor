@@ -5,6 +5,7 @@
 
 @using Firebase.Auth
 @using Blazored.LocalStorage
+@using Firebase.Database.Query
 
 @inject FirebaseClient Fc
 @inject NavigationManager NavManager
@@ -12,7 +13,7 @@
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IAccountManagement Acct
 
-@using Firebase.Database.Query
+
 
 <FluentStack Orientation="Orientation.Vertical">
     <h1>@(!string.IsNullOrWhiteSpace(vId) ? "Update" : "Add") Vehicle</h1>
@@ -300,7 +301,7 @@
             if (!string.IsNullOrEmpty(vehicle?.Driver) && string.IsNullOrEmpty(selectedDriverValue))
             {
                 Console.WriteLine("WARNING: Vehicle has a driver but selectedDriverValue is empty!");
-                // This helps you identify the issue
+                
             }
         }
     }

@@ -1,0 +1,275 @@
+﻿@page "/addeditjob"
+@page "/addeditjob/{jId}"
+
+
+@attribute [Authorize(Roles = "Admin, User")]
+
+@using Firebase.Auth
+@using Blazored.LocalStorage
+@using Firebase.Database.Query
+
+@inject FirebaseClient Fc
+@inject NavigationManager NavManager
+@inject ILocalStorageService LocalStorageService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IAccountManagement Acct
+
+<FluentStack Orientation="Orientation.Vertical">
+    <h1>@(!string.IsNullOrWhiteSpace(jId) ? "Update" : "Add") Job</h1>
+
+    @if (job != null)
+    {
+        <EditForm Model="job" OnValidSubmit="AddUpdateJob">
+            <DataAnnotationsValidator />
+            <FluentValidationSummary />
+            <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px">
+                <div>
+                    <FluentTextField Name="summary" @bind-Value="@job.Summary" Label="Summary" Required="true" TextFieldType="TextFieldType.Text" />
+                    <FluentValidationMessage For="@(() => job.Summary)" />
+                </div>
+                <div>
+                    <FluentSelect Items="@users"
+                                  Label="Driver"
+                                  Required="false"
+                                  Id="driverlistbox"
+                                  Placeholder="Select Driver"
+                                  TOption="Option<string>"
+                                  Multiple="false"
+                                  OptionText="@(i => i.Text)"
+                                  OptionValue="@(i => i.Value)"
+                                  Value="@selectedDriverValue"
+                                  ValueChanged="@(value => DriverValueChanged(value))"/>
+
+                    <FluentValidationMessage For="@(() => job.Driver)" />
+                </div>
+                <div>
+                    <FluentButton Type="ButtonType.Submit" Appearance="Appearance.Accent">
+                        @(!string.IsNullOrWhiteSpace(jId) ? "Update" : "Add") Job
+                    </FluentButton>
+                    <FluentButton Type="ButtonType.Button" Appearance="Appearance.Outline" OnClick="@(() => NavManager.NavigateTo("/jobslist"))">Cancel</FluentButton>
+                </div>
+            </FluentStack>
+        </EditForm>
+    }
+    else
+    {
+        <FluentProgressRing />
+        <p>Loading...</p>
+    }
+
+</FluentStack>
+
+
+@code {
+    private Job job = null;
+    private string selectedDriverValue;
+
+    private string _jId;
+    [Parameter]
+    public string? jId
+    {
+        get => _jId;
+        set
+        {
+            if (_jId != value)
+            {
+                _jId = value;
+                // Reset selections when ID changes
+                selectedDriverValue = null;
+            }
+        }
+    }
+    private List<Option<string>> users = new();
+
+    static List<Option<string>> statusTypes = new()
+    {
+        {new Option<string> { Value = "Pending", Text = "Pending" } },
+        {new Option<string> { Value = "On Way to Collection", Text = "On Way to Collection" } },
+        {new Option<string> { Value = "At Collection Point", Text = "At Collection Point" } },
+        {new Option<string> { Value = "Loaded", Text = "Loaded" } },
+        {new Option<string> { Value = "At Delivery Point", Text = "At Delivery Point" } },
+        {new Option<string> { Value = "Delivered", Text = "Delivered" } },
+        {new Option<string> { Value = "Cancelled", Text = "Cancelled" } },
+    };
+
+    private string GetDriverDisplayName(string combinedValue)
+    {
+        if (string.IsNullOrEmpty(combinedValue))
+            return string.Empty;
+
+        var parts = combinedValue.Split('|');
+        return parts.Length > 0 ? parts[0] : combinedValue;
+    }
+
+    private string GetDriverUid(string combinedValue)
+    {
+        if (string.IsNullOrEmpty(combinedValue))
+            return string.Empty;
+
+        var parts = combinedValue.Split('|');
+        return parts.Length > 1 ? parts[1] : string.Empty;
+    }
+
+    private void DriverValueChanged(string value)
+    {
+        selectedDriverValue = value;
+        if (!string.IsNullOrEmpty(value))
+        {
+            // Store the combined value for processing later
+            job.Driver = GetDriverDisplayName(value);
+            job.IsAllocated = true;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Fc = new FirebaseClient(Cnst.FirebaseDatabaseUrl, new FirebaseOptions()
+        {
+            AuthTokenAsyncFactory = Acct.GetAuthTokenAsync
+        });
+
+        try
+        {
+            // Clear any previously selected values
+            selectedDriverValue = null;
+
+            await LoadUsersAsync();
+            await LoadJobAsync();
+            await GetInitialSelections();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error in initialization: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
+        }
+    }
+
+    private async Task LoadUsersAsync()
+    {
+        try
+        {
+            users.Clear();
+            Console.WriteLine("Loading users...");
+
+            // Get users from Firebase Auth
+            var pagedEnumerable = FirebaseAuth.DefaultInstance.ListUsersAsync(null);
+            var responses = pagedEnumerable.AsRawResponses().GetAsyncEnumerator();
+
+            while (await responses.MoveNextAsync())
+            {
+                var response = responses.Current;
+                foreach (var user in response.Users)
+                {
+                    if (!string.IsNullOrEmpty(user.DisplayName))
+                    {
+                        var option = new Option<string>
+                        {
+                            Value = $"{user.DisplayName}|{user.Uid}",
+                            Text = user.DisplayName
+                        };
+                        users.Add(option);
+                        Console.WriteLine($"Added user: {option.Text} with value: {option.Value}");
+                    }
+                }
+            }
+
+            Console.WriteLine($"Loaded {users.Count} users");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading users: {ex.Message}");
+            Console.WriteLine(ex.StackTrace);
+        }
+    }
+
+    private async Task LoadJobAsync()
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(jId))
+            {
+                var jResponse = await Fc.Child($"Job/{jId}").OnceSingleAsync<Job>();
+                if (jResponse != null)
+                {
+                    job = jResponse;
+
+                    // If we have a Driver name but no UID, we'll need to set it up
+                    // for the correct format when users are loaded
+                    if (!string.IsNullOrEmpty(job.Driver) && string.IsNullOrEmpty(job.Uid))
+                    {
+                        // We'll match this up in LoadUsersAsync later
+                        Console.WriteLine($"Vehicle has Driver '{job.Driver}' but no UID");
+                    }
+                }
+                else
+                {
+                    job = new Job();
+                }
+            }
+            else
+            {
+                job = new Job();
+            }
+        }
+        catch (Firebase.Database.FirebaseException ex)
+        {
+            Console.WriteLine($"Firebase error: {ex.Message}");
+            job = new Job();
+        }
+        StateHasChanged();
+    }
+
+    private async Task AddUpdateJob()
+    {
+        bool success = true;
+
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(jId))
+            {
+                // Edit Mode
+                await Fc.Child($"Job/{jId}").PutAsync(job);
+                Console.WriteLine($"Updated job with ID: {jId}");
+            }
+            else
+            {
+                // Add Mode
+                var result = await Fc.Child($"Job").PostAsync(job);
+                Console.WriteLine($"Added new vehicle with key: {result.Key}");
+            }
+
+            if (success)
+            {
+                NavManager.NavigateTo("/jobslist");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error adding/updating job: {ex.Message}");
+            success = false;
+        }
+    }
+
+    private async Task GetInitialSelections()
+    {
+        try
+        {
+            if (job != null && !string.IsNullOrEmpty(job.Driver))
+            {
+                // Find the user that matches the job's driver name
+                var matchingUser = users.FirstOrDefault(u => u.Text == job.Driver);
+                if (matchingUser != null)
+                {
+                    selectedDriverValue = matchingUser.Value;
+
+                    job.Uid = GetDriverUid(selectedDriverValue);
+                    Console.WriteLine($"Selected driver: {job.Driver} with UID: {job.Uid}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error getting initial selections: {ex.Message}");
+        }
+    }
+}

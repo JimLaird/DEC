@@ -13,13 +13,19 @@ namespace DEC.Shared.Models
 
         [Required(ErrorMessage = "Job Summary is required")]
         public string Summary { get; set; }
-        
-        [Required(ErrorMessage = "Collection Point is required")]
+
+        public bool IsAllocated { get; set; }
+
+        public string Driver { get; set; }
+        public string Uid { get; set; }
+        public string Status { get; set; }
+
+        //[Required(ErrorMessage = "Collection Point is required")]
         public string Collection { get; set; }
         
         public string CollectionTime { get; set; }
         
-        [Required(ErrorMessage = "Delivery Point is required")]
+        //[Required(ErrorMessage = "Delivery Point is required")]
         public string Delivery { get; set; }
         
         public string DeliveryTime { get; set; }   
