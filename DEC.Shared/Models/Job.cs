@@ -20,6 +20,9 @@ namespace DEC.Shared.Models
         public string Uid { get; set; }
         public string Status { get; set; }
 
+        public string PendingDate{ get; set; }
+        public string PendingTime { get; set; }
+
         //[Required(ErrorMessage = "Collection Point is required")]
         public string Collection { get; set; }
         

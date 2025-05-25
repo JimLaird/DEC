@@ -92,6 +92,9 @@
         {new Option<string> { Value = "Cancelled", Text = "Cancelled" } },
     };
 
+    private DateTime pendDate;
+    private DateTime pendTime;
+
     private string GetDriverDisplayName(string combinedValue)
     {
         if (string.IsNullOrEmpty(combinedValue))
@@ -117,6 +120,17 @@
         {
             // Store the combined value for processing later
             job.Driver = GetDriverDisplayName(value);
+            job.Uid = GetDriverUid(value);
+            if (!string.IsNullOrWhiteSpace(job.Status)){
+                job.Status = job.Status;
+                job.PendingDate = job.PendingDate;
+                job.PendingTime = job.PendingTime;
+            } 
+            else {
+                job.Status = "Pending";
+                job.PendingDate = DateTime.Now.ToString("yyyy-MM-dd");
+                job.PendingTime = DateTime.Now.ToString("HH:mm:ss");
+            }
             job.IsAllocated = true;
         }
     }
@@ -136,6 +150,8 @@
             await LoadUsersAsync();
             await LoadJobAsync();
             await GetInitialSelections();
+
+            await ParseDates();
         }
         catch (Exception ex)
         {
@@ -271,5 +287,10 @@
         {
             Console.WriteLine($"Error getting initial selections: {ex.Message}");
         }
+    }
+
+    private async Task ParseDates()
+    {
+       
     }
 }

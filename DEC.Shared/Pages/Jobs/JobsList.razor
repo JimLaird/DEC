@@ -45,6 +45,8 @@ else
                 </div>
             </TemplateColumn>
 
+            <PropertyColumn Property="@(j => j.Status)" Sortable="true" Title="Status" />
+
             <TemplateColumn Title="Actions" Align="@Align.End">
                 <FluentIcon Value="@(new Icons.Regular.Size20.Edit())" Color="Color.Accent" OnClick="@(() => EditJob(context.Id))" Title="Edit" />
 
