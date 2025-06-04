@@ -27,6 +27,26 @@
                     <FluentTextField Name="summary" @bind-Value="@job.Summary" Label="Summary" Required="true" TextFieldType="TextFieldType.Text" />
                     <FluentValidationMessage For="@(() => job.Summary)" />
                 </div>
+
+                <div>
+                    <FluentTextField Name="price" @bind-Value="@job.Price" Label="Price" Required="true" TextFieldType="TextFieldType.Text" />
+                </div>
+
+                 @* Collection Point Details *@
+                <div>
+                    <FluentTextArea Name="collectionPoint" @bind-Value="@job.Collection" Label="Collection Point" Required="false" Rows="4" />
+                    <br />
+                    <FluentDatePicker Name="collectionDate" @bind-Value="@collectionDate" Label="Collection Date" Required="false" />
+                    <FluentTimePicker Name="collectionTime" @bind-Value="@collectionTime" Label="Collection Time" Required="false" />
+                </div>
+
+                @* Delivery Point Details *@
+                <div>
+                    <FluentTextArea Name="deliveryPoint" @bind-Value="@job.Delivery" Label="Delivery Point" Required="false" Rows="4" />
+                    <FluentDatePicker Name="collectionDate" @bind-Value="@deliveryDate" Label="Delivery Date" Required="false" />
+                    <FluentTimePicker Name="collectionTime" @bind-Value="@deliveryTime" Label="delivery Time" Required="false" />
+                </div>
+
                 <div>
                     <FluentSelect Items="@users"
                                   Label="Driver"
@@ -42,12 +62,98 @@
 
                     <FluentValidationMessage For="@(() => job.Driver)" />
                 </div>
-                <div>
-                    <FluentButton Type="ButtonType.Submit" Appearance="Appearance.Accent">
-                        @(!string.IsNullOrWhiteSpace(jId) ? "Update" : "Add") Job
-                    </FluentButton>
-                    <FluentButton Type="ButtonType.Button" Appearance="Appearance.Outline" OnClick="@(() => NavManager.NavigateTo("/jobslist"))">Cancel</FluentButton>
-                </div>
+                
+               
+                
+                @if (job.Status == "Pending")
+                {
+                    <div>
+                        <FluentButton Appearance="Appearance.Accent" OnClick="SetOnWayToCollect">
+                            On Way to Collection
+                        </FluentButton>
+                    </div>
+                }
+
+                @if (job.Status == "On Way to Collection")
+                {
+                    <div>
+                        <FluentTextArea Name="atCollectionNotes" Rows="3" @bind-Value="@job.AtCollectionNotes" Label="Notes"/>
+                    </div>
+                    <div>
+                        <FluentButton Appearance="Appearance.Accent" OnClick="SetAtCollection">
+                            At Collection Point
+                        </FluentButton>
+                    </div>    
+                }
+
+                @if (job.Status == "At Collection Point")
+                {
+                    <div>
+                        <FluentTextArea Name="loadedNotes" Rows="3" @bind-Value="@job.LoadedNotes" Label="Loaded Notes"/>
+                    </div>
+
+                    // Store some photos and save as PDF
+
+                    <div>
+                        <FluentButton Appearance="Appearance.Accent" OnClick="SetLoaded">
+                            Loaded
+                        </FluentButton>
+                    </div>
+                }
+                
+                @if (job.Status == "Loaded")
+                {
+                    <div>
+                        <FluentTextArea Name="atDeliveryNotes" Rows="3" @bind-Value="@job.AtDeliveryNotes" Label="Notes"/>
+                    </div>
+                    <div>
+                        <FluentButton Appearance="Appearance.Accent" OnClick="SetAtDelivery">
+                            At Delivery Point
+                        </FluentButton>
+                    </div>
+                }
+
+                @if (job.Status == "At Delivery Point")
+                {
+                    <div>
+                        <FluentTextArea Name="deliveredNotes" Rows="3" @bind-Value="@job.DeliveredNotes" Label="Delivered Notes"/>
+                    </div>
+
+                    // Store some photos and save as PDF
+
+                    <div>
+                        <FluentTextField Name="receivedBy" @bind-Value="@job.ReceivedBy" Label="Received By"/>
+                    </div>
+
+                    // Add Signature Capture
+
+                    <div>
+                        <FluentButton Appearance="Appearance.Accent" OnClick="SetDelivered">
+                            Delivered
+                        </FluentButton>
+                    </div>
+                }
+
+                @if (job.Status == "Delivered")
+                {
+                    <div>
+                        <FluentButton Appearance="Appearance.Accent" OnClick="ShowHistory">
+                            ShowHistory
+                        </FluentButton>
+                    </div>
+                }
+                
+                <AuthorizeView Roles="Admin">
+                    <Authorized Context="auth">
+                        <div>
+                            <FluentButton Type="ButtonType.Submit" Appearance="Appearance.Accent">
+                                @(!string.IsNullOrWhiteSpace(jId) ? "Update" : "Add") Job
+                            </FluentButton>
+                            <FluentButton Type="ButtonType.Button" Appearance="Appearance.Outline" OnClick="@(() => NavManager.NavigateTo("/jobslist"))">Cancel</FluentButton>
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
+                
             </FluentStack>
         </EditForm>
     }
@@ -95,6 +201,43 @@
     private DateTime pendDate;
     private DateTime pendTime;
 
+
+    //  Dates and Times for Job Statuses
+    private DateTime? collectionDate;
+    private DateTime? collectionTime;
+    private DateTime? deliveryDate;
+    private DateTime? deliveryTime;
+    private DateTime? onwayDate;
+    private DateTime? onwayTime;
+    private DateTime? atcollectionDate;
+    private DateTime? atcollectionTime;
+    private DateTime? loadedDate;
+    private DateTime? loadedTime;
+    private DateTime? atdeliveryDate;
+    private DateTime? atdeliveryTime;
+    private DateTime? deliveredDate;
+    private DateTime? deliveredTime;
+
+    private void CombineCollectionDateTime()
+    {
+        if (collectionDate.HasValue && collectionTime.HasValue)
+        {
+            string collectionDateTime = $"{collectionDate.Value:yyyy-MM-dd}T{collectionTime.Value:HH:mm:ss}";
+
+            job.CollectionDate = collectionDateTime;
+        }
+    }
+
+    private void CombineDeliveryDateTime()
+    {
+        if (deliveryDate.HasValue && deliveryTime.HasValue)
+        {
+            string deliveryDateTime = $"{deliveryDate.Value:yyyy-MM-dd}T{deliveryTime.Value:HH:mm:ss}";
+
+            job.DeliveryDate = deliveryDateTime;
+        }
+    }
+
     private string GetDriverDisplayName(string combinedValue)
     {
         if (string.IsNullOrEmpty(combinedValue))
@@ -124,13 +267,9 @@
             if (!string.IsNullOrWhiteSpace(job.Status)){
                 job.Status = job.Status;
                 job.PendingDate = job.PendingDate;
-                job.PendingTime = job.PendingTime;
-            } 
-            else {
-                job.Status = "Pending";
-                job.PendingDate = DateTime.Now.ToString("yyyy-MM-dd");
-                job.PendingTime = DateTime.Now.ToString("HH:mm:ss");
+
             }
+            
             job.IsAllocated = true;
         }
     }
@@ -142,6 +281,9 @@
             AuthTokenAsyncFactory = Acct.GetAuthTokenAsync
         });
 
+
+
+
         try
         {
             // Clear any previously selected values
@@ -149,9 +291,86 @@
 
             await LoadUsersAsync();
             await LoadJobAsync();
+
+            if (job != null)
+            {
+                if (!string.IsNullOrEmpty(job.CollectionDate))
+                {
+                    DateTime.TryParse(job.CollectionDate?.Replace(".:", ":"), out DateTime parsedDate);
+                    collectionDate = parsedDate; 
+                    collectionTime = parsedDate;
+                }
+                // if (!string.IsNullOrEmpty(job.CollectionTime))
+                // {
+                //     DateTime.TryParse(job.CollectionTime?.Replace(".:", ":"), out DateTime parsedTime);
+                //     collectionTime = parsedTime;
+                // }
+                if (!string.IsNullOrEmpty(job.DeliveryDate))
+                {
+                    DateTime.TryParse(job.DeliveryDate?.Replace(".:", ":"), out DateTime parsedDate);
+                    deliveryDate = parsedDate;
+                    deliveryTime = parsedDate;
+                }
+                // if (!string.IsNullOrEmpty(job.DeliveryTime))
+                // {
+                //     DateTime.TryParse(job.DeliveryTime?.Replace(".:", ":"), out DateTime parsedTime);
+                //     deliveryTime = parsedTime;
+                // }
+                if (!string.IsNullOrEmpty(job.OnWayDate))
+                {
+                    DateTime.TryParse(job.OnWayDate?.Replace(".:", ":"), out DateTime parsedDate);
+                    onwayDate = parsedDate;
+                }
+                // if (!string.IsNullOrEmpty(job.OnWayTime))
+                // {
+                //     DateTime.TryParse(job.OnWayTime?.Replace(".:", ":"), out DateTime parsedTime);
+                //     onwayTime = parsedTime;
+                // }
+                if (!string.IsNullOrEmpty(job.AtCollectionDate))
+                {
+                    DateTime.TryParse(job.AtCollectionDate?.Replace(".:", ":"), out DateTime parsedDate);
+                    atcollectionDate = parsedDate;
+                }
+                // if (!string.IsNullOrEmpty(job.AtCollectionTime))
+                // {
+                //     DateTime.TryParse(job.AtCollectionTime?.Replace(".:", ":"), out DateTime parsedTime);
+                //     atcollectionTime = parsedTime;
+                // }
+                if (!string.IsNullOrEmpty(job.LoadedDate))
+                {
+                    DateTime.TryParse(job.LoadedDate?.Replace(".:", ":"), out DateTime parsedDate);
+                    loadedDate = parsedDate;
+                }
+                // if (!string.IsNullOrEmpty(job.LoadedTime))
+                // {
+                //     DateTime.TryParse(job.LoadedTime?.Replace(".:", ":"), out DateTime parsedTime);
+                //     loadedTime = parsedTime;
+                // }
+                if (!string.IsNullOrEmpty(job.AtDeliveryDate))
+                {
+                    DateTime.TryParse(job.AtDeliveryDate?.Replace(".:", ":"), out DateTime parsedDate);
+                    atdeliveryDate = parsedDate;
+                }
+                // if (!string.IsNullOrEmpty(job.AtDeliveryTime))
+                // {
+                //     DateTime.TryParse(job.AtDeliveryTime?.Replace(".:", ":"), out DateTime parsedTime);
+                //     atdeliveryTime = parsedTime;
+                // }
+                if (!string.IsNullOrEmpty(job.DeliveredDate))
+                {
+                    DateTime.TryParse(job.DeliveredDate?.Replace(".:", ":"), out DateTime parsedDate);
+                    deliveredDate = parsedDate;
+                }
+                // if (!string.IsNullOrEmpty(job.DeliveredTime))
+                // {
+                //     DateTime.TryParse(job.DeliveredTime?.Replace(".:", ":"), out DateTime parsedTime);
+                //     deliveredTime = parsedTime;
+                // }
+            }
+
             await GetInitialSelections();
 
-            await ParseDates();
+
         }
         catch (Exception ex)
         {
@@ -235,15 +454,90 @@
         StateHasChanged();
     }
 
+    private void UpdateOnWayString(ChangeEventArgs args = null)
+    {
+        if (onwayDate.HasValue)
+        {
+            job.OnWayDate = onwayDate.Value.ToString("yyyy-MM-dd");
+        }
+        if (onwayTime.HasValue)
+        {
+            job.OnWayTime = onwayTime.Value.ToString("HH:mm:ss");
+        }
+    }
+
+    private void UpdateAtCollectionString(ChangeEventArgs args = null)
+    {
+        if (atcollectionDate.HasValue)
+        {
+            job.AtCollectionDate = atcollectionDate.Value.ToString("yyyy-MM-dd");
+        }
+        if (atcollectionTime.HasValue)
+        {
+            job.AtCollectionTime = atcollectionTime.Value.ToString("HH:mm:ss");
+        }
+    }
+
+    private void UpdateLoadedString(ChangeEventArgs args = null)
+    {
+        if (loadedDate.HasValue)
+        {
+            job.LoadedDate = loadedDate.Value.ToString("yyyy-MM-dd");
+        }
+        if (loadedTime.HasValue)
+        {
+            job.LoadedTime = loadedTime.Value.ToString("HH:mm:ss");
+        }
+    }
+
+    private void UpdateAtDeliveryString(ChangeEventArgs args = null)
+    {
+        if (atdeliveryDate.HasValue)
+        {
+            job.AtDeliveryDate = atdeliveryDate.Value.ToString("yyyy-MM-dd");
+        }
+        if (atdeliveryTime.HasValue)
+        {
+            job.AtDeliveryTime = atdeliveryTime.Value.ToString("HH:mm:ss");
+        }
+    }
+
+    private void UpdateDeliveredString(ChangeEventArgs args = null)
+    {
+        if (deliveredDate.HasValue)
+        {
+            job.DeliveredDate = deliveredDate.Value.ToString("yyyy-MM-dd");
+        }
+        if (deliveredTime.HasValue)
+        {
+            job.DeliveredTime = deliveredTime.Value.ToString("HH:mm:ss");
+        }
+    }
+
     private async Task AddUpdateJob()
     {
         bool success = true;
 
         try
         {
+            // Update Date Fields
+            CombineCollectionDateTime();
+            CombineDeliveryDateTime();
+            UpdateOnWayString();
+            UpdateAtCollectionString();
+            UpdateLoadedString();
+            UpdateAtDeliveryString();
+            UpdateDeliveredString();
+
+
             if (!string.IsNullOrWhiteSpace(jId))
             {
                 // Edit Mode
+                if (!string.IsNullOrEmpty(job.Driver) && string.IsNullOrEmpty(job.Status))
+                {
+                    job.Status = "Pending"; // Default status if not set
+                    job.PendingDate = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss");
+                }
                 await Fc.Child($"Job/{jId}").PutAsync(job);
                 Console.WriteLine($"Updated job with ID: {jId}");
             }
@@ -289,8 +583,58 @@
         }
     }
 
-    private async Task ParseDates()
+    private async Task SetOnWayToCollect()
     {
-       
+        DateTime now = DateTime.Now;
+               
+        job.Status = "On Way to Collection";
+
+
+        job.OnWayDate = now.ToString("yyyy-MM-ddTHH:mm:ss");
+        // job.OnWayTime = now.ToString("HH:mm:ss");
+
+        await AddUpdateJob();
+    }
+
+    private async Task SetAtCollection()
+    {
+        DateTime now = DateTime.Now;
+        job.Status = "At Collection Point";
+        job.AtCollectionDate = now.ToString("yyyy-MM-ddTHH:mm:ss");
+        // job.AtCollectionTime = now.ToString("HH:mm:ss");
+        await AddUpdateJob();
+    }
+
+    private async Task SetLoaded()
+    {
+        DateTime now = DateTime.Now;
+        job.Status = "Loaded";
+        job.LoadedDate = now.ToString("yyyy-MM-ddTHH:mm:ss");
+        // job.LoadedTime = now.ToString("HH:mm:ss");
+        await AddUpdateJob();
+    }
+
+    private async Task SetAtDelivery()
+    {
+        DateTime now = DateTime.Now;
+        job.Status = "At Delivery Point";
+        job.AtDeliveryDate = now.ToString("yyyy-MM-ddTHH:mm:ss");
+        // job.AtDeliveryTime = now.ToString("HH:mm:ss");
+        await AddUpdateJob();
+    }
+
+    private async Task SetDelivered()
+    {
+        DateTime now = DateTime.Now;
+        job.Status = "Delivered";
+        job.DeliveredDate = now.ToString("yyyy-MM-ddTHH:mm:ss");
+        // job.DeliveredTime = now.ToString("HH:mm:ss");
+        await AddUpdateJob();
+    }
+
+    private async Task ShowHistory()
+    {
+        // Navigate to the job history page with the current job ID
+        NavManager.NavigateTo($"/jobhistory/{jId}");
     }
 }

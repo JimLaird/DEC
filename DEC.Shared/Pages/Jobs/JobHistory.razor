@@ -1,0 +1,23 @@
+﻿@page "/jobhistory"
+@page "/jobhistory/{jId}"
+
+@attribute [Authorize(Roles = "Admin, User")]
+
+@using Firebase.Auth
+@using Blazored.LocalStorage
+@using Firebase.Database.Query
+
+@inject FirebaseClient Fc
+@inject NavigationManager NavManager
+@inject ILocalStorageService LocalStorageService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IAccountManagement Acct
+
+<h3>JobHistory</h3>
+
+@code {
+    [Parameter]
+    public string? jId { get; set; }
+
+
+}

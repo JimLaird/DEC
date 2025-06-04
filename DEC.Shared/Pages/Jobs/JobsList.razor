@@ -18,7 +18,7 @@
 <div class="row">
     <h1>Job List</h1>
     <AuthorizeView Roles="Admin">
-        <Authorized>
+        <Authorized Context="auth">
             <FluentButton Appearance="Appearance.Accent" OnClick="@AddJob">Add Job</FluentButton>
         </Authorized>
     </AuthorizeView>
