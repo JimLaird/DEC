@@ -15,7 +15,7 @@
 @inject IAccountManagement Acct
 
 <FluentStack Orientation="Orientation.Vertical">
-    <h1>@(!string.IsNullOrWhiteSpace(jId) ? "Update" : "Add") Job</h1>
+    <h2>@(!string.IsNullOrWhiteSpace(jId) ? "Update" : "Add") Job</h2>
 
     @if (job != null)
     {

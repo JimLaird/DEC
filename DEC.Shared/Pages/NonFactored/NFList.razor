@@ -17,7 +17,7 @@
 <PageTitle>NonFactored</PageTitle>
 
 <div class="row">
-    <h1>Non Factored List</h1>
+    <h2>Non Factored List</h2>
     <AuthorizeView Roles="Admin">
         <Authorized>
             <FluentButton Appearance="Appearance.Accent" OnClick="@AddNF">Add Client</FluentButton>
@@ -42,20 +42,18 @@ else
 {
     <div>
         <FluentDataGrid Items="@filteredNonFactoredList" Pagination="@pagination" TGridItem="NonFactored" ItemSize="46">
-            <PropertyColumn Property="@(n => n.Name)" Sortable="true" Title="Client Name" SortBy="@rankSort" />
+            <PropertyColumn Property="@(n => n.Name)" Sortable="true" Title="Client" SortBy="@rankSort" />
             <PropertyColumn Property="@(n => n.Cx)" Sortable="true" Title="CX No." />
 
-            <TemplateColumn Title="Actions">
-                
-                <FluentIcon Value="@(new Icons.Regular.Size16.Edit())" Color="Color.Accent" OnClick="@(() => EditNF(context.Id))" Title="Edit" />
-
-                <AuthorizeView Roles="Admin">
-                    <Authorized Context="auth">
+            <AuthorizeView Roles="Admin">
+                <Authorized Context="auth">
+                    <TemplateColumn Title="Actions">
+                        <FluentIcon Value="@(new Icons.Regular.Size16.Edit())" Color="Color.Accent" OnClick="@(() => EditNF(context.Id))" Title="Edit" />  
                         <span>&nbsp;</span>
                         <FluentIcon Value="@(new Icons.Regular.Size16.Delete())" Color="Color.Warning" OnClick="@(() => DeleteNF(context.Id))" Title="Delete" />
-                    </Authorized>
-                </AuthorizeView>
-            </TemplateColumn>
+                    </TemplateColumn>
+                </Authorized>
+            </AuthorizeView>
         </FluentDataGrid>
         <FluentPaginator State="@pagination" />
     </div>
@@ -97,48 +95,72 @@ else
             // Clear any existing data
             nfList.Clear();
 
-            
+
+            // Load initial data as a snapshot for faster access
+            var initialSnapshot = await Fc.Child("NF")
+                .OrderBy("Name")
+                // .LimitToFirst(40)
+                .OnceAsync<NonFactored>();
+
+            foreach (var item in initialSnapshot)
+            {
+                if (item.Object != null)
+                {
+                    item.Object.Id = item.Key; // Set the Id property
+                    nfList.Add(item.Object);
+                }
+            }
+
+            nonFactoredList = nfList.AsQueryable();
+            FilterData();
+            isLoading = false;
+            StateHasChanged();
 
             // Store the subscription for proper cleanup
-            var subscription = Fc.Child("NF")
-                .AsObservable<NonFactored>()
-                .Subscribe(
-                    // OnNext handler
-                    item =>
-                    {
-                        if (item.Object != null)
-                        {
-                            item.Object.Id = item.Key;
-                            nfList.Add(item.Object);
-                            nonFactoredList = nfList.AsQueryable();
-                            FilterData(); // Apply any current filters
-                            InvokeAsync(StateHasChanged); // Notify UI of changes
-                        }
-                    },
-                    // OnError handler
-                    async error =>
-                    {
-                        Console.WriteLine($"Subscription error: {error.Message}");
+            // var subscription = Fc.Child("NF")
+            //     .AsObservable<NonFactored>()
+            //     .Subscribe(
+            //         // OnNext handler
+            //         item =>
+            //         {
+            //             if (item.Object != null)
+            //             {
+            //                 var existingItem = nfList.FirstOrDefault(n => n.Id == item.Key);
+            //                 if (existingItem != null)
+            //                 {
+            //                     nfList.Remove(existingItem);
+            //                 }
+                                 
+                            
+            //                 item.Object.Id = item.Key;
+            //                 nfList.Add(item.Object);
+            //                 nonFactoredList = nfList.AsQueryable();
+            //                 FilterData(); 
+            //                 InvokeAsync(StateHasChanged);
+            //             }
+            //         },
+            //         // OnError handler
+            //         async error =>
+            //         {
+                    
+            //             Console.WriteLine($"Subscription error: {error.Message}");
 
-                        // Check if the error is an authentication error
-                        if (error is Firebase.Database.FirebaseException fbEx &&
-                            (fbEx.Message.Contains("401") || fbEx.Message.Contains("Unauthorized")))
-                        {
-                            // Force token refresh and retry
-                            bool refreshed = await Acct.RefreshTokenAsync();
-                            if (refreshed)
-                            {
-                                await InvokeAsync(() => LoadNFDataAsync()); // Retry loading data
-                            }
-                            else
-                            {
-                                await InvokeAsync(() => NavManager.NavigateTo("/login"));
-                            }
-                        }
-                    });
+            //             if (error is Firebase.Database.FirebaseException fbEx &&
+            //                 (fbEx.Message.Contains("401") || fbEx.Message.Contains("Unauthorized")))
+            //             {
+            //                 bool refreshed = await Acct.RefreshTokenAsync();
+            //                 if (refreshed)
+            //                 {
+            //                     await InvokeAsync(() => LoadNFDataAsync());
+            //                 }
+            //                 else
+            //                 {
+            //                     await InvokeAsync(() => NavManager.NavigateTo("/login"));
+            //                 }
+            //             }
+            //         });
 
-            // Wait a moment for initial data to load
-            await Task.Delay(2000);
+           
         }
         catch (Exception ex)
         {
@@ -161,11 +183,9 @@ else
                 }
             }
         }
-        finally
-        {
-            isLoading = false;
-            StateHasChanged();
-        }
+        
+        isLoading = false;
+        StateHasChanged();
     }
 
 
