@@ -28,6 +28,7 @@ namespace DEC
                 .ConfigureFonts(fonts =>
                 {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
+                    fonts.AddFont("OPPOSansRegular.ttf", "OppoSansRegular");
                 })
                 .ConfigureEssentials(essentials => 
                 {

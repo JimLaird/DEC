@@ -19,15 +19,15 @@
 <div>
 
     <FluentDataGrid Items="@userList" Pagination="@pagination" MultiLine>
-        <TemplateColumn Title="User">
+        <TemplateColumn Title="User" Width="110">
             <FluentPersona Image="@context.PhotoUrl"
                            Name="@context.DisplayName"
                            ImageSize="50px"
                            Status="@(context.IsSignedIn ? PresenceStatus.Available : PresenceStatus.Busy)"
                            StatusSize="PresenceBadgeSize.Small" />
         </TemplateColumn>
-        <TemplateColumn Title="Roles">
-            <FluentStack Orientation="Orientation.Horizontal">
+        <TemplateColumn Title="Roles" Align="Align.Center">
+            <FluentStack Orientation="Orientation.Horizontal" VerticalAlignment="VerticalAlignment.Center">
                 @if (context.Roles != null && context.Roles.Count > 0)
                 {
                     <ul>
@@ -45,12 +45,13 @@
                 }
             </FluentStack>
         </TemplateColumn>
-        <TemplateColumn Title="Actions">
+        <TemplateColumn Title="Actions" Align="Align.End">
             <FluentIcon Value="@(new Icons.Regular.Size20.PhoneArrowRight())" Color="Color.Accent" OnClick="@(() => CallUser(context))" Title="Call User" />
-            <span>&nbsp;</span>
-            <FluentIcon Value="@(new Icons.Regular.Size20.Edit())" Color="Color.Accent" OnClick="@(() => EditUser(context))" Title="Edit" />
+            
             <AuthorizeView Roles="Admin">
                 <Authorized Context="auth">
+                    <span>&nbsp;</span>
+                    <FluentIcon Value="@(new Icons.Regular.Size20.Edit())" Color="Color.Accent" OnClick="@(() => EditUser(context))" Title="Edit" />
                     <span>&nbsp;</span>
                     <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Color="Color.Warning" OnClick="@(() => DeleteUser(context))" Title="Delete" />
                 </Authorized>
