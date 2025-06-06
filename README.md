@@ -42,6 +42,7 @@ The following NuGet packages are used in this project:
 - **[Microsoft.Extensions.Logging.Debug](https://www.nuget.org/packages/Microsoft.Extensions.Logging.Debug)** Version: `9.0.4`
 - **[Newtonsoft.Json](https://www.nuget.org/packages/Newtonsoft.Json)** Version: `13.0.3`
 - **[FirebaseStorage.net](https://www.nuget.org/packages/FirebaseStorage.net)** Version: `1.0.3`
+- **[QuestPDF](https://www.nuget.org/packages/QuestPDF)** Version: `2025.5.1`
 
 ---
 
