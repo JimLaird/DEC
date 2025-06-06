@@ -15,6 +15,8 @@ public const string FirebaseAuthDomain = "YOUR_PROJECT_AUTH_DOMAIN";
 public const string FirebaseProjectId = "YOUR_PROJECT_ID";
 public const string GoogleServiceAccount = "YOUR_PROJECT_SERVICE_ACCOUNT_JSON_FILE";
 public const string FirebaseStorageBucket = "YOUR_PROJECT_STORAGE_BUCKET";
+public const string FirebaseDatabaseUrl = "YOUR_REALTIMEDATABASE_URL";
+public const string GoogleApiUrl = "YOUR_GOOGLE_AUTH_API_URL";
 ```
 
 Replace these values with your own from the Firebase console.
