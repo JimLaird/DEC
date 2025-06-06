@@ -61,6 +61,7 @@
                                   ValueChanged="@(value => DriverValueChanged(value))"/>
 
                     <FluentValidationMessage For="@(() => job.Driver)" />
+                    <FluentButton Appearance="Appearance.Outline" OnClick="AddUpdateJob" >ReAllocate Driver</FluentButton>
                 </div>
                 
                
@@ -169,6 +170,7 @@
 @code {
     private Job job = null;
     private string selectedDriverValue;
+    private bool isCompleted = false;
 
     private string _jId;
     [Parameter]
@@ -269,7 +271,7 @@
                 job.PendingDate = job.PendingDate;
 
             }
-            
+
             job.IsAllocated = true;
         }
     }
@@ -512,6 +514,7 @@
         {
             job.DeliveredTime = deliveredTime.Value.ToString("HH:mm:ss");
         }
+        
     }
 
     private async Task AddUpdateJob()
@@ -629,6 +632,7 @@
         job.Status = "Delivered";
         job.DeliveredDate = now.ToString("yyyy-MM-ddTHH:mm:ss");
         // job.DeliveredTime = now.ToString("HH:mm:ss");
+        job.IsCompleted = true; // Mark job as completed
         await AddUpdateJob();
     }
 

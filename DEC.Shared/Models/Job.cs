@@ -11,6 +11,8 @@ namespace DEC.Shared.Models
     {
         public string Id { get; set; }
 
+        public bool IsCompleted { get; set; }
+
         [Required(ErrorMessage = "Job Summary is required")]
         public string Summary { get; set; }
 

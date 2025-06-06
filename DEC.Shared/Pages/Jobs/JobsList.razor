@@ -36,33 +36,39 @@ else if (jobList == null || !jobList.Any())
 else
 {
     <div>
-        <FluentDataGrid Items="@jobList" Pagination="@pagination" TGridItem="Job" RowSize="DataGridRowSize.Medium">
-            <TemplateColumn Title="Summary">
-                <div>
-                    @context.Summary
-                    <br />
-                    <span style="color: red">@(!context.IsAllocated ? "Not Allocated" : "Allocated to: " + context.Driver)</span>
-                </div>
-            </TemplateColumn>
+        <FluentDataGrid AutoFit="true" Items="@jobList" Pagination="@pagination" TGridItem="Job">
+            
+                <TemplateColumn Title="Summary" Style="height: 80px" Align="Align.Stretch" Sortable="true" SortBy="@rankSort">
+                    <div>
+                        @context.Summary
+                        <br />
+                        <span style="color: red">@(!context.IsAllocated ? "Not Allocated" : "Allocated: " + context.Driver)</span>
+                        <br />
+                        @context.Status
+                    </div>
+                </TemplateColumn>
 
-            <PropertyColumn Property="@(j => j.Status)" Sortable="true" Title="Status" />
+                @* <PropertyColumn Property="@(j => j.Status)" Sortable="true" Title="Status" Align="Align.Start" Style="height: 80px" /> *@
 
-            <TemplateColumn Title="Actions" Align="@Align.End">
-                <FluentIcon Value="@(new Icons.Regular.Size20.Edit())" Color="Color.Accent" OnClick="@(() => EditJob(context.Id))" Title="Edit" />
+                <TemplateColumn Title="Actions" Align="Align.End" Style="height: 80px">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.Edit())" Color="Color.Accent" OnClick="@(() => EditJob(context.Id))" Title="Edit" />
 
-                <AuthorizeView Roles="Admin">
-                    <Authorized Context="auth">
-                        <span>&nbsp;</span>
-                        <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Color="Color.Warning" OnClick="@(() => DeleteJob(context.Id))" Title="Delete" />
+                    <AuthorizeView Roles="Admin">
+                        <Authorized Context="auth">
+                            <span>&nbsp;</span>
+                            <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Color="Color.Warning" OnClick="@(() => DeleteJob(context.Id))" Title="Delete" />
 
-                    </Authorized>
-                </AuthorizeView>
-            </TemplateColumn>
+                        </Authorized>
+                    </AuthorizeView>
+                </TemplateColumn>
+            
+            
         </FluentDataGrid>
         <FluentPaginator State="@pagination" />
     </div>
 
 }
+
 
 @code {
     PaginationState pagination = new PaginationState()
@@ -74,7 +80,9 @@ else
     private bool isLoading = true;
     private List<Job> jList = new List<Job>();
 
-
+    GridSort<Job> rankSort = GridSort<Job>
+        .ByAscending(x => x.IsCompleted)
+        .ThenDescending(x => x.PendingDate);
 
     protected override async Task OnInitializedAsync()
     {
@@ -145,21 +153,40 @@ else
 
             jList.Clear();
 
-            var subscription = Fc.Child("Job")
-                .AsObservable<Job>()
-                .Subscribe(item =>
+            // Load initial snapshot for speed
+            var initialSnapshot = await Fc.Child("Job")
+                .OrderBy("IsCompleted")
+                // .LimitToFirst(40)
+                .OnceAsync<Job>();
+
+            foreach (var item in initialSnapshot)
+            {
+                if (item.Object != null)
                 {
-                    if (item.Object != null)
-                    {
-                        item.Object.Id = item.Key;
-                        jList.Add(item.Object);
+                    item.Object.Id = item.Key; // Set the Id property
+                    jList.Add(item.Object);
+                }
+            }
 
-                        jobList = jList.AsQueryable();
-                        InvokeAsync(StateHasChanged);
-                    }
-                });
+            jobList = jList.AsQueryable();
+            isLoading = false;
+            StateHasChanged();
 
-            await Task.Delay(2000);
+            // var subscription = Fc.Child("Job")
+            //     .AsObservable<Job>()
+            //     .Subscribe(item =>
+            //     {
+            //         if (item.Object != null)
+            //         {
+            //             item.Object.Id = item.Key;
+            //             jList.Add(item.Object);
+
+            //             jobList = jList.AsQueryable();
+            //             InvokeAsync(StateHasChanged);
+            //         }
+            //     });
+
+            // await Task.Delay(2000);
         }
         catch (Exception ex)
         {
