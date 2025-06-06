@@ -160,7 +160,23 @@ else
 
             vList.Clear();
 
-            
+            // var initialSnapshot = await Fc.Child("Vehicle")
+            // .OrderBy("IsValid")
+            // .OnceAsync<Vehicle>();
+
+            // foreach (var item in initialSnapshot)
+            // {
+            //     if (item.Object != null)
+            //     {
+            //         item.Object.Id = item.Key; // Set the Id property
+            //         vList.Add(item.Object);
+            //     }
+            // }
+
+            // vehicleList = vList.AsQueryable();
+            // isLoading = false;
+            // StateHasChanged();
+
 
             var subscription = Fc.Child("Vehicle")
             .AsObservable<Vehicle>()
