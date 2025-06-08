@@ -42,8 +42,9 @@ The following NuGet packages are used in this project:
 - **[Microsoft.Extensions.Logging.Debug](https://www.nuget.org/packages/Microsoft.Extensions.Logging.Debug)** Version: `9.0.4`
 - **[Newtonsoft.Json](https://www.nuget.org/packages/Newtonsoft.Json)** Version: `13.0.3`
 - **[FirebaseStorage.net](https://www.nuget.org/packages/FirebaseStorage.net)** Version: `1.0.3`
-- **[QuestPDF](https://www.nuget.org/packages/QuestPDF)** Version: `2025.5.1`
-
+- **[iText7](https://www.nuget.org/packages/iText7)** Version: `9.2.0`
+- **[iText.Bouncy.Castle](https://www.nuget.org/[ackages/iText7.Bouncy.Castle.Adapter)** Version: `9.2.0`
+ 
 ---
 
 ## Features
