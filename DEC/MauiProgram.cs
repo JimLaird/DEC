@@ -16,6 +16,7 @@ using DEC.Shared.CustomAuth;
 using Google.Apis.Auth.OAuth2;
 
 
+
 namespace DEC
 {
     public static class MauiProgram
@@ -78,7 +79,10 @@ namespace DEC
             // Register Phone Dialler Service
             builder.Services.AddSingleton<IPhoneDiallerService, PhoneDiallerService>();
 
-           
+            // Register Camera Service
+            builder.Services.AddScoped<CameraService>();
+
+
 
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();

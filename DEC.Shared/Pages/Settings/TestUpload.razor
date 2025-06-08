@@ -1,11 +1,17 @@
 ﻿@page "/testupload"
 @using DEC.Shared.Services
 @using System.IO
+@using Microsoft.Maui.Storage
+@using iText.IO.Image
+@using iText.Kernel.Pdf.Canvas.Draw
+@using iText.Kernel.Pdf
+@using iText.Layout.Element
+@using iText.Layout
+
 @inject IFirebaseStorageService FirebaseStorageService
+@inject CameraService CameraService
 
 <h2>Test File Upload</h2>
-
-
 
 @if (!string.IsNullOrEmpty(imageUrl))
 {
@@ -38,7 +44,7 @@ Max="100"
 Value="@progressPercent" 
 Visible="@(progressPercent > 0)" />
 
-<FluentLabel Alignment="HorizontalAlignment.Center">
+<FluentLabel Alignment="Microsoft.FluentUI.AspNetCore.Components.HorizontalAlignment.Center">
     @progressTitle
 </FluentLabel>
 
@@ -55,15 +61,33 @@ Visible="@(progressPercent > 0)" />
         }
     </ul>
 }
+<br /><br />
+<FluentDivider></FluentDivider>
+
+<h3>Capture Image and Upload PDF</h3>
+<div>
+    <FluentLabel>Add Up To 4 Images</FluentLabel>
+    <FluentButton Appearance="Appearance.Accent" OnClick="CapturePhoto">Take Photo</FluentButton>
+</div>
+
+@if (!string.IsNullOrEmpty(pdfUrl))
+{
+    <div class="mb-3">
+        <label class="form-label">PDF URL:</label>
+        <input type="text" class="form-control" value="@pdfUrl" readonly />
+    </div>
+
+}
 
 @code {
-
-
 
     FluentInputFile? myFileByStream = default;
     int? progressPercent;
     string? progressTitle;
     List<string> Files = new();
+    private IBrowserFile? selectedFile;
+    private string? imageUrl;
+    private string? pdfUrl;
 
     async Task OnFileUploadedAsync(FluentInputFileEventArgs file)
     {
@@ -76,10 +100,8 @@ Visible="@(progressPercent > 0)" />
         string fileExtension = Path.GetExtension(file.Name);
         string uniqueFileName = $"{Guid.NewGuid()}{fileExtension}";
 
-
         Files.Add(localFile);
 
-        
         await using FileStream fs = new(localFile, FileMode.Create);
         imageUrl = await FirebaseStorageService.UploadFile(file.Stream!, uniqueFileName);
 
@@ -98,7 +120,94 @@ Visible="@(progressPercent > 0)" />
         }
     }
 
-    private IBrowserFile? selectedFile;
-    private string? imageUrl;
-    
+    async Task CapturePhoto()
+    {
+        FileResult? photo = null;
+        string? tempFilePath = null;
+        string? tempPdfPath = null;
+
+        try
+        {
+            // Use the photo picker instead of camera capture for broader compatibility
+            photo = await CameraService.PickPhotoAsync();
+            if (photo == null)
+            {
+                Console.WriteLine("No photo selected.");
+                return;
+            }
+
+            // Create temp file path
+            tempFilePath = Path.Combine(Path.GetTempPath(), photo.FileName);
+            
+            // Save the photo to the temp file
+            using (var sourceStream = await photo.OpenReadAsync())
+            using (var destinationStream = File.Create(tempFilePath))
+            {
+                await sourceStream.CopyToAsync(destinationStream);
+            }
+
+            // Create unique PDF filename
+            tempPdfPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.pdf");
+
+            // Create PDF using iText7
+            using (var writer = new PdfWriter(tempPdfPath))
+            using (var pdfDoc = new PdfDocument(writer))
+            using (var document = new Document(pdfDoc))
+            {
+                // Add header
+                document.Add(new Paragraph("Captured Photo")
+                    .SetTextAlignment(iText.Layout.Properties.TextAlignment.CENTER)
+                    .SetFontSize(20));
+                
+                // Add separator
+                document.Add(new LineSeparator(new SolidLine()));
+                
+                // Load the image with proper byte[] conversion for greater compatibility
+                byte[] imageData = File.ReadAllBytes(tempFilePath);
+                var image = new iText.Layout.Element.Image(ImageDataFactory.Create(imageData))
+                    .SetHorizontalAlignment(iText.Layout.Properties.HorizontalAlignment.CENTER)
+                    .ScaleToFit(500, 700); // Scale to fit page better
+                    
+                document.Add(image);
+            }
+
+            // Upload the PDF
+            using (var pdfStream = File.OpenRead(tempPdfPath))
+            {
+                var uniqueFileName = $"document_{DateTime.UtcNow:yyyyMMdd_HHmmss}.pdf";
+                pdfUrl = await FirebaseStorageService.UploadFile(pdfStream, uniqueFileName);
+                
+                
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error processing photo: {ex.Message}");
+            // Consider logging the full exception for debugging
+            Console.WriteLine($"Exception details: {ex}");
+        }
+        finally
+        {
+            CleanupTemporaryFiles(tempFilePath, tempPdfPath);
+        }
+    }
+
+    private void CleanupTemporaryFiles(params string?[] filePaths)
+    {
+        foreach (var path in filePaths)
+        {
+            if (!string.IsNullOrEmpty(path) && File.Exists(path))
+            {
+                try
+                {
+                    File.Delete(path);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error deleting temporary file {path}: {ex.Message}");
+                }
+            }
+        }
+    }
 }
