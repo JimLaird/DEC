@@ -52,6 +52,7 @@ The following NuGet packages are used in this project:
 - Cross-platform support for **Windows**, **iOS**, and **Android**.
 - Firebase integration for authentication, database, and other functionalities.
 - Blazor Hybrid framework for building modern and interactive UIs.
+- PDF Generation on the fly.
 
 ---
 
