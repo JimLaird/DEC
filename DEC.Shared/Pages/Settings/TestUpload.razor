@@ -72,9 +72,10 @@ Visible="@(progressPercent > 0)" />
 {
     <h4>Captured Images:</h4>
     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
-        @foreach (var image in capturedImages)
+        @foreach (var imagePath in capturedImages)
         {
-            <img src="@image" alt="Captured Image" style="max-width: 200px; max-height: 200px;" />
+            string base64String = Convert.ToBase64String(File.ReadAllBytes(imagePath));
+            <img src="data:image/jpeg;base64,@base64String" alt="Captured Image" style="max-width: 200px; max-height: 200px;" />
         }
     </div>
 }
@@ -159,33 +160,29 @@ Visible="@(progressPercent > 0)" />
         }
 
         FileResult? photo = await CameraService.PickPhotoAsync();
-        if (photo == null)
-        {
-            Console.WriteLine("No photo selected.");
-            return;
-        }
+        if (photo == null) return;
 
-        string tempFilePath = Path.Combine(Path.GetTempPath(), photo.FileName);
+        // Define directory path in personal folder
+        string folderPath = FileSystem.AppDataDirectory;
+        string newFileName = $"{Guid.NewGuid()}.jpg";
+        string filePath = Path.Combine(folderPath, newFileName);
+
         using (var sourceStream = await photo.OpenReadAsync())
-        using (var destinationStream = File.Create(tempFilePath))
+        using (var destinationStream = File.Create(filePath))
         {
             await sourceStream.CopyToAsync(destinationStream);
         }
 
-        capturedImages.Add(tempFilePath);
+        capturedImages.Add(filePath);
 
         await InvokeAsync(StateHasChanged);
     }
 
     async Task GenerateAndUploadPdf()
     {
-        if (!capturedImages.Any())
-        {
-            Console.WriteLine("No images captured.");
-            return;
-        }
+        if (!capturedImages.Any()) return;
 
-        string tempPdfPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.pdf");
+        string tempPdfPath = Path.Combine(FileSystem.AppDataDirectory, $"{Guid.NewGuid()}.pdf");
 
         using (var writer = new PdfWriter(tempPdfPath))
         using (var pdfDoc = new PdfDocument(writer))
@@ -215,10 +212,8 @@ Visible="@(progressPercent > 0)" />
             pdfUrl = await FirebaseStorageService.UploadFile(pdfStream, uniqueFileName);
         }
 
-        capturedImages.ForEach(File.Delete);
+        // Cleanup (optional)
         capturedImages.Clear();
-
-        await InvokeAsync(StateHasChanged);
     }
 
     private void CleanupTemporaryFiles(params string?[] filePaths)
