@@ -1,7 +1,359 @@
 ﻿@page "/todolist"
 
-<h2>TodoList</h2>
+@using DEC.Shared.Models
+@using Firebase.Database.Query
+@using System.Security.Claims
+@using Blazored.LocalStorage
+@using System.Linq
+
+@inject FirebaseClient Fc
+@inject NavigationManager NavManager
+@inject ILocalStorageService LocalStorageService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IAccountManagement Acct
+
+<PageTitle>Task List</PageTitle>
+
+<div class="row mb-3">
+    <div class="d-flex justify-content-between align-items-center">
+        <h2>Task List</h2>
+        <FluentButton Appearance="Appearance.Accent" OnClick="@AddTask">Add Task</FluentButton>
+    </div>
+</div>
+
+@if (isLoading)
+{
+    <div class="d-flex flex-column align-items-center my-4">
+        <FluentProgressRing />
+        <p class="mt-2">Loading tasks...</p>
+    </div>
+}
+else if (!taskQuery.Any())
+{
+    <div class="alert alert-info">
+        @if (isAdmin)
+        {
+            <p>No tasks found. Click "Add Task" to create a new task.</p>
+        }
+        else
+        {
+            <p>You don't have any tasks assigned to you.</p>
+        }
+    </div>
+}
+else
+{
+    <div>
+        <FluentDataGrid Items="@taskQuery" Pagination="@pagination" TGridItem="Todo" RowSize="DataGridRowSize.Medium">
+            <TemplateColumn Title="Complete?" Sortable="true" Width="100px">
+                <FluentCheckbox Value="@context.IsCompleted" 
+                               ValueChanged="@(value => UpdateTaskStatus(context, value))" />
+            </TemplateColumn>
+            <PropertyColumn Property="@(t => t.Driver)" Sortable="true" Title="Assigned To" />
+            <TemplateColumn Title="Task">
+                <div>
+                    <strong>@context.Title</strong>
+                    <div class="text-secondary">@context.Description</div>
+                </div>
+            </TemplateColumn>
+        </FluentDataGrid>
+        
+        <FluentPaginator State="@pagination" />
+    </div>
+}
 
 @code {
 
+    private PaginationState pagination = new() { ItemsPerPage = 10 };
+    private List<Todo> tasks = new();
+    private IQueryable<Todo> taskQuery => tasks.AsQueryable();
+    private bool isLoading = true;
+    private bool isAdmin = false;
+    private string userId = string.Empty;
+    private string currentUserDisplayName = string.Empty;
+    private string currentUserUid = string.Empty;
+    private string currentUserEmail = string.Empty;
+
+    
+    protected override async Task OnInitializedAsync()
+    {
+
+        await GetCurrentUserInfo();
+        await SetupFirebaseClient();
+        await LoadTasks();
+    }
+
+    private async Task GetCurrentUserInfo()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (user.Identity?.IsAuthenticated != true)
+            {
+                NavManager.NavigateTo("/login");
+                return;
+            }
+
+            // Get basic user info
+            currentUserDisplayName = user.Identity?.Name ?? "";
+            currentUserUid = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
+            currentUserEmail = user.FindFirst(ClaimTypes.Email)?.Value ?? "";
+
+            // Set the userId consistently with how it's used in LoadTasks
+            userId = currentUserUid;
+
+            // Check if user is in Admin role
+            isAdmin = user.IsInRole("Admin");
+
+            // Alternative ways to check for admin role if the above doesn't work
+            if (!isAdmin)
+            {
+                // Check for role claim
+                var roleClaims = user.FindAll(ClaimTypes.Role).ToList();
+                isAdmin = roleClaims.Any(c => c.Value.Equals("Admin", StringComparison.OrdinalIgnoreCase));
+
+                // Check for custom admin claim
+                if (!isAdmin)
+                {
+                    isAdmin = user.HasClaim(c =>
+                        (c.Type == "role" || c.Type == "roles" || c.Type.Contains("role")) &&
+                        c.Value.Contains("Admin", StringComparison.OrdinalIgnoreCase));
+                }
+            }
+
+            // For debugging
+            Console.WriteLine($"User: {currentUserDisplayName}, UID: {currentUserUid}, IsAdmin: {isAdmin}");
+
+            // Check if any info is missing and try local storage if needed
+            // if (string.IsNullOrEmpty(currentUserDisplayName) || string.IsNullOrEmpty(currentUserUid))
+            // {
+            //     await TryGetUserInfoFromLocalStorage();
+            // }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error getting user info: {ex.Message}");
+        }
+    }
+
+    private async Task TryGetUserInfoFromLocalStorage()
+    {
+        try
+        {
+            // Try to get admin status from local storage
+            var adminStatus = await LocalStorageService.GetItemAsync<bool>("isAdmin");
+            if (!isAdmin)
+            {
+                isAdmin = adminStatus;
+            }
+
+            // Get other user info if needed
+            if (string.IsNullOrEmpty(currentUserUid))
+            {
+                currentUserUid = await LocalStorageService.GetItemAsync<string>("uid") ?? "";
+                userId = currentUserUid; // Keep consistent
+            }
+
+            if (string.IsNullOrEmpty(currentUserDisplayName))
+            {
+                currentUserDisplayName = await LocalStorageService.GetItemAsync<string>("displayName") ?? "";
+            }
+
+            if (string.IsNullOrEmpty(currentUserEmail))
+            {
+                currentUserEmail = await LocalStorageService.GetItemAsync<string>("userEmail") ?? "";
+            }
+
+            // Try to parse user info JSON if available
+            var userInfoJson = await LocalStorageService.GetItemAsync<string>("userInfo");
+            if (!string.IsNullOrEmpty(userInfoJson))
+            {
+                try
+                {
+                    var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                    var userInfo = System.Text.Json.JsonSerializer.Deserialize<UserInfo>(userInfoJson, options);
+
+                    if (userInfo != null)
+                    {
+                        if (string.IsNullOrEmpty(currentUserUid) && !string.IsNullOrEmpty(userInfo.Uid))
+                        {
+                            currentUserUid = userInfo.Uid;
+                            userId = currentUserUid; // Keep consistent
+                        }
+
+                        if (string.IsNullOrEmpty(currentUserDisplayName) && !string.IsNullOrEmpty(userInfo.DisplayName))
+                        {
+                            currentUserDisplayName = userInfo.DisplayName;
+                        }
+
+                        if (string.IsNullOrEmpty(currentUserEmail) && !string.IsNullOrEmpty(userInfo.Email))
+                        {
+                            currentUserEmail = userInfo.Email;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error parsing user info JSON: {ex.Message}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error accessing local storage: {ex.Message}");
+        }
+    }
+
+    private async Task SetupFirebaseClient()
+    {
+        Fc = new FirebaseClient(Cnst.FirebaseDatabaseUrl, new FirebaseOptions
+        {
+            AuthTokenAsyncFactory = Acct.GetAuthTokenAsync
+        });
+    }
+
+    
+
+    private async Task LoadTasks()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            tasks.Clear();
+
+            var snapshot = await Fc.Child("TODO").OnceAsync<Todo>();
+
+            foreach (var item in snapshot)
+            {
+                if (item.Object == null) continue;
+
+                var todo = item.Object;
+                todo.Id = item.Key;
+
+                bool shouldInclude = false;
+
+                // Admin sees all tasks
+                if (isAdmin)
+                {
+                    shouldInclude = true;
+                    Console.WriteLine($"Admin user - showing task: {todo.Title}");
+                }
+                // Regular user sees only their tasks
+                else
+                {
+                    // Check by user ID first
+                    if (!string.IsNullOrEmpty(currentUserUid) && !string.IsNullOrEmpty(todo.Uid) &&
+                        todo.Uid.Equals(currentUserUid, StringComparison.OrdinalIgnoreCase))
+                    {
+                        shouldInclude = true;
+                        Console.WriteLine($"UID match - showing task: {todo.Title}");
+                    }
+                    // Then check by display name
+                    else if (!string.IsNullOrEmpty(currentUserDisplayName) && !string.IsNullOrEmpty(todo.Driver) &&
+                             todo.Driver.Equals(currentUserDisplayName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        shouldInclude = true;
+                        Console.WriteLine($"Display name match - showing task: {todo.Title}");
+
+                        // Update UID if missing
+                        if (string.IsNullOrEmpty(todo.Uid) && !string.IsNullOrEmpty(currentUserUid))
+                        {
+                            todo.Uid = currentUserUid;
+                            await Fc.Child("TODO").Child(todo.Id).Child("Uid").PutAsync(currentUserUid);
+                        }
+                    }
+                    // Finally check by email
+                    else if (!string.IsNullOrEmpty(currentUserEmail) && !string.IsNullOrEmpty(todo.Driver) &&
+                             todo.Driver.Equals(currentUserEmail, StringComparison.OrdinalIgnoreCase))
+                    {
+                        shouldInclude = true;
+                        Console.WriteLine($"Email match - showing task: {todo.Title}");
+
+                        // Update task with proper user info
+                        if (string.IsNullOrEmpty(todo.Uid) && !string.IsNullOrEmpty(currentUserUid))
+                        {
+                            todo.Uid = currentUserUid;
+                            await Fc.Child("TODO").Child(todo.Id).Child("Uid").PutAsync(currentUserUid);
+                        }
+                    }
+                }
+
+                if (shouldInclude)
+                {
+                    tasks.Add(todo);
+                }
+            }
+
+            Console.WriteLine($"Loaded {tasks.Count} tasks for user (isAdmin: {isAdmin})");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading tasks: {ex.Message}");
+
+            if (ex.Message.Contains("401") || ex.Message.Contains("Unauthorized"))
+            {
+                // Try to refresh token and retry
+                try
+                {
+                    bool refreshed = await Acct.RefreshTokenAsync();
+                    if (refreshed)
+                    {
+                        await LoadTasks();
+                        return;
+                    }
+                }
+                catch
+                {
+                    // If refresh fails, redirect to login
+                    NavManager.NavigateTo("/login");
+                    return;
+                }
+            }
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task UpdateTaskStatus(Todo todo, bool isCompleted)
+    {
+        try
+        {
+            todo.IsCompleted = isCompleted;
+            
+            await Fc
+                .Child("TODO")
+                .Child(todo.Id)
+                .PutAsync(todo);
+                
+            Console.WriteLine($"Updated task {todo.Id} completion status to {isCompleted}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error updating task status: {ex.Message}");
+            
+            // Revert the UI state if update failed
+            todo.IsCompleted = !isCompleted;
+            StateHasChanged();
+        }
+    }
+
+    private void AddTask()
+    {
+        NavManager.NavigateTo("/addtodo");
+    }
+    
+    private class UserInfo
+    {
+        public string Uid { get; set; }
+        public string DisplayName { get; set; }
+        public string Email { get; set; }
+    }
+    
 }

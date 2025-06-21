@@ -23,29 +23,58 @@
             <DataAnnotationsValidator />
             <FluentValidationSummary />
             <FluentStack Orientation="Orientation.Vertical" Style="gap: 16px">
-                <div>
-                    <FluentTextField Name="summary" @bind-Value="@job.Summary" Label="Summary" Required="true" TextFieldType="TextFieldType.Text" />
-                    <FluentValidationMessage For="@(() => job.Summary)" />
-                </div>
+                
+                <AuthorizeView Roles="Admin">
+                    <Authorized Context="adminContext">
+                        <div>
+                            <FluentTextField Name="summary" @bind-Value="@job.Summary" Label="Summary" Required="true" TextFieldType="TextFieldType.Text" />
+                            <FluentValidationMessage For="@(() => job.Summary)" />
+                        </div>
 
-                <div>
-                    <FluentTextField Name="price" @bind-Value="@job.Price" Label="Price" Required="true" TextFieldType="TextFieldType.Text" />
-                </div>
+                        <div>
+                            <FluentTextField Name="price" @bind-Value="@job.Price" Label="Price" Required="true" TextFieldType="TextFieldType.Text" />
+                        </div>
 
-                 @* Collection Point Details *@
-                <div>
-                    <FluentTextArea Name="collectionPoint" @bind-Value="@job.Collection" Label="Collection Point" Required="false" Rows="4" />
-                    <br />
-                    <FluentDatePicker Name="collectionDate" @bind-Value="@collectionDate" Label="Collection Date" Required="false" />
-                    <FluentTimePicker Name="collectionTime" @bind-Value="@collectionTime" Label="Collection Time" Required="false" />
-                </div>
+                         @* Collection Point Details *@
+                        <div>
+                            <FluentTextArea Name="collectionPoint" @bind-Value="@job.Collection" Label="Collection Point" Required="false" Rows="4" />
+                            <br />
+                            <FluentDatePicker Name="collectionDate" @bind-Value="@collectionDate" Label="Collection Date" Required="false" />
+                            <FluentTimePicker Name="collectionTime" @bind-Value="@collectionTime" Label="Collection Time" Required="false" />
+                        </div>
 
-                @* Delivery Point Details *@
-                <div>
-                    <FluentTextArea Name="deliveryPoint" @bind-Value="@job.Delivery" Label="Delivery Point" Required="false" Rows="4" />
-                    <FluentDatePicker Name="collectionDate" @bind-Value="@deliveryDate" Label="Delivery Date" Required="false" />
-                    <FluentTimePicker Name="collectionTime" @bind-Value="@deliveryTime" Label="delivery Time" Required="false" />
-                </div>
+                        @* Delivery Point Details *@
+                        <div>
+                            <FluentTextArea Name="deliveryPoint" @bind-Value="@job.Delivery" Label="Delivery Point" Required="false" Rows="4" />
+                            <FluentDatePicker Name="collectionDate" @bind-Value="@deliveryDate" Label="Delivery Date" Required="false" />
+                            <FluentTimePicker Name="collectionTime" @bind-Value="@deliveryTime" Label="delivery Time" Required="false" />
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
+
+                <AuthorizeView Roles="User">
+                    <Authorized Context="userContext">
+                        <div>
+                            <FluentLabel>@job.Summary</FluentLabel>
+                        </div>
+
+                        <div>
+                            <FluentLabel>@job.Price</FluentLabel>
+                        </div>
+
+                        <div>
+                            <FluentLabel>@job.Collection</FluentLabel>
+                            <FluentLabel>@(collectionDate?.ToString("yyyy-MM-dd") ?? "No Date")</FluentLabel>
+                            <FluentLabel>@(collectionTime?.ToString("HH:mm:ss") ?? "No Time")</FluentLabel>
+                        </div>
+
+                        <div>
+                            <FluentLabel>@job.Delivery</FluentLabel>
+                            <FluentLabel>@(deliveryDate?.ToString("yyyy-MM-dd") ?? "No Date")</FluentLabel>
+                            <FluentLabel>@(deliveryTime?.ToString("HH:mm:ss") ?? "No Time")</FluentLabel>   
+                        </div>
+                    </Authorized>
+                </AuthorizeView>
 
                 <div>
                     <FluentSelect Items="@users"
@@ -145,7 +174,7 @@
                 }
                 
                 <AuthorizeView Roles="Admin">
-                    <Authorized Context="auth">
+                    <Authorized Context="authContext">
                         <div>
                             <FluentButton Type="ButtonType.Submit" Appearance="Appearance.Accent">
                                 @(!string.IsNullOrWhiteSpace(jId) ? "Update" : "Add") Job
