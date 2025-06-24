@@ -212,11 +212,7 @@ else
             await GetUserInfoByEmail(currentUserEmail);
         }
 
-        // Try local storage as a fallback
-        if (string.IsNullOrEmpty(currentUserDisplayName) || string.IsNullOrEmpty(currentUserUid))
-        {
-            await GetUserInfoFromLocalStorage();
-        }
+       
 
         // If we have email but still no display name, use email username
         if (string.IsNullOrEmpty(currentUserDisplayName) && !string.IsNullOrEmpty(currentUserEmail))
@@ -279,82 +275,7 @@ else
         }
     }
 
-    private async Task GetUserInfoFromLocalStorage()
-    {
-        try
-        {
-            // Try to get user info from local storage
-            var userInfoStr = await LocalStorageService.GetItemAsStringAsync("userInfo");
-            if (!string.IsNullOrEmpty(userInfoStr))
-            {
-                try
-                {
-                    var options = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                    var userInfo = System.Text.Json.JsonSerializer.Deserialize<UserInfo>(userInfoStr, options);
-
-                    if (userInfo != null)
-                    {
-                        if (string.IsNullOrEmpty(currentUserUid) && !string.IsNullOrEmpty(userInfo.Uid))
-                        {
-                            currentUserUid = userInfo.Uid;
-                            Console.WriteLine($"Got UID from local storage: {currentUserUid}");
-                        }
-
-                        if (string.IsNullOrEmpty(currentUserDisplayName) && !string.IsNullOrEmpty(userInfo.DisplayName))
-                        {
-                            currentUserDisplayName = userInfo.DisplayName;
-                            Console.WriteLine($"Got display name from local storage: {currentUserDisplayName}");
-                        }
-
-                        if (string.IsNullOrEmpty(currentUserEmail) && !string.IsNullOrEmpty(userInfo.Email))
-                        {
-                            currentUserEmail = userInfo.Email;
-                            Console.WriteLine($"Got email from local storage: {currentUserEmail}");
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error parsing user info: {ex.Message}");
-                }
-            }
-
-            // Check for individual items in local storage
-            if (string.IsNullOrEmpty(currentUserUid))
-            {
-                var uid = await LocalStorageService.GetItemAsStringAsync("uid");
-                if (!string.IsNullOrEmpty(uid))
-                {
-                    currentUserUid = uid;
-                    Console.WriteLine($"Got UID directly from local storage: {currentUserUid}");
-                }
-            }
-
-            if (string.IsNullOrEmpty(currentUserDisplayName))
-            {
-                var displayName = await LocalStorageService.GetItemAsStringAsync("displayName");
-                if (!string.IsNullOrEmpty(displayName))
-                {
-                    currentUserDisplayName = displayName;
-                    Console.WriteLine($"Got display name directly from local storage: {currentUserDisplayName}");
-                }
-            }
-
-            if (string.IsNullOrEmpty(currentUserEmail))
-            {
-                var email = await LocalStorageService.GetItemAsStringAsync("userEmail");
-                if (!string.IsNullOrEmpty(email))
-                {
-                    currentUserEmail = email;
-                    Console.WriteLine($"Got email directly from local storage: {currentUserEmail}");
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error accessing local storage: {ex.Message}");
-        }
-    }
+    
 
     private async Task LoadUsersAsync()
     {

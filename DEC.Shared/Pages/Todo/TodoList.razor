@@ -11,6 +11,7 @@
 @inject ILocalStorageService LocalStorageService
 @inject AuthenticationStateProvider AuthStateProvider
 @inject IAccountManagement Acct
+@inject IDialogService DialogService
 
 <PageTitle>Task List</PageTitle>
 
@@ -45,7 +46,7 @@ else
 {
     <div>
         <FluentDataGrid Items="@taskQuery" Pagination="@pagination" TGridItem="Todo" RowSize="DataGridRowSize.Medium">
-            <TemplateColumn Title="Complete?" Sortable="true" Width="100px">
+            <TemplateColumn Title="" Sortable="true" Width="60px" Style="height: 80px">
                 <FluentCheckbox Value="@context.IsCompleted" 
                                ValueChanged="@(value => UpdateTaskStatus(context, value))" />
             </TemplateColumn>
@@ -74,7 +75,7 @@ else
     private string currentUserUid = string.Empty;
     private string currentUserEmail = string.Empty;
 
-    
+
     protected override async Task OnInitializedAsync()
     {
 
@@ -126,11 +127,7 @@ else
             // For debugging
             Console.WriteLine($"User: {currentUserDisplayName}, UID: {currentUserUid}, IsAdmin: {isAdmin}");
 
-            // Check if any info is missing and try local storage if needed
-            // if (string.IsNullOrEmpty(currentUserDisplayName) || string.IsNullOrEmpty(currentUserUid))
-            // {
-            //     await TryGetUserInfoFromLocalStorage();
-            // }
+            
         }
         catch (Exception ex)
         {
@@ -214,7 +211,7 @@ else
         });
     }
 
-    
+
 
     private async Task LoadTasks()
     {
@@ -323,25 +320,47 @@ else
 
     private async Task UpdateTaskStatus(Todo todo, bool isCompleted)
     {
-        try
+       
+
+        if (isCompleted)
         {
-            todo.IsCompleted = isCompleted;
             
-            await Fc
-                .Child("TODO")
-                .Child(todo.Id)
-                .PutAsync(todo);
-                
-            Console.WriteLine($"Updated task {todo.Id} completion status to {isCompleted}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error updating task status: {ex.Message}");
-            
-            // Revert the UI state if update failed
-            todo.IsCompleted = !isCompleted;
-            StateHasChanged();
-        }
+                var taskToDelete = tasks.FirstOrDefault(t => t.Id == todo.Id);
+                string taskName = taskToDelete?.Title ?? "this task";
+
+                RenderFragment dialogContent = builder =>
+                {
+                    builder.OpenElement(0, "div");
+                    builder.AddAttribute(1, "style", "min-height: 6rem; padding: 1rem;");
+                    builder.AddContent(2, $"Are you sure you want to delete task '{taskName}'?");
+                    builder.CloseElement();
+                };
+
+                var dialog = await DialogService.ShowDialogAsync(
+                    dialogContent,
+                    new DialogParameters
+                    {
+                        Title = "Confirm Delete",
+                        Width = "400px",
+                        PrimaryAction = "Delete",
+                        SecondaryAction = "Cancel",
+                        Modal = true
+                    });
+
+                var result = await dialog.Result;
+                if (result == null || result.Cancelled)
+                    return;
+            try
+            {
+                await Fc.Child($"TODO/{taskToDelete?.Id}").DeleteAsync();
+                await LoadTasks();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error deleting job: {ex.Message}");
+            }
+    }
+        else { return; }
     }
 
     private void AddTask()

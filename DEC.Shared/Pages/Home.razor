@@ -70,6 +70,47 @@
                     </div>
                 </FluentCard>
             </FluentGridItem>
+            <FluentGridItem xs="12" sm="6" lg="6">
+                <FluentCard>
+                    <div class="dashboard-card">
+                        <h2>Tasks Summary</h2>
+                        @if (isLoading)
+                        {
+                            <FluentProgressRing />
+                        }
+                        else
+                        {
+                            <AuthorizeView Roles="Admin">
+                                <Authorized Context="auth">
+                                    <div class="stats-container">
+                                        <div class="stat-item">
+                                            <div class="stat-value">@totalTasks</div>
+                                            <div class="stat-label">Total Tasks</div>
+                                        </div>
+                                        
+                                    </div>
+                                </Authorized>
+                            </AuthorizeView>
+
+                            <AuthorizeView>
+                                <Authorized Context="auth">
+                                    <div class="stats-container">
+                                        <div class="stat-item">
+                                            <div class="stat-value">@userTasks</div>
+                                            <div class="stat-label">Your Tasks</div>
+                                        </div>
+                                    </div>
+                                </Authorized>
+                            </AuthorizeView>
+                            
+                            <FluentButton Appearance="Appearance.Accent" 
+                                          OnClick="@(() => navManager.NavigateTo("/todolist"))">
+                                View Tasks
+                            </FluentButton>
+                        }
+                    </div>
+                </FluentCard>
+            </FluentGridItem>
         </FluentGrid>
     </Authorized>
 </AuthorizeView>
@@ -110,14 +151,18 @@
     private int userVehiclesRequiringAttention = 0;
     private string currentUserDisplayName = "";
     private string currentUserUid = "";
-    
+    private int totalTasks = 0;
+    private int userTasks = 0;
+
     [Inject]
     private NavigationManager navManager { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
         await GetCurrentUserInfo();
+        await ConfigureFirebase();
         await LoadVehicleData();
+        await LoadTaskData();
     }
 
     private async Task GetCurrentUserInfo()
@@ -131,6 +176,21 @@
         // currentUserUid = user.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "";
     }
 
+    private async Task ConfigureFirebase()
+    {
+        try
+        {
+            Fc = new FirebaseClient(Cnst.FirebaseDatabaseUrl, new FirebaseOptions()
+            {
+                AuthTokenAsyncFactory = Acct.GetAuthTokenAsync
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error configuring Firebase: {ex.Message}");
+        }
+    }
+
     private async Task LoadVehicleData()
     {
         try
@@ -140,19 +200,19 @@
 
             var vehicles = new List<Vehicle>();
 
-            Fc = new FirebaseClient(Cnst.FirebaseDatabaseUrl, new FirebaseOptions()
-                {
-                    AuthTokenAsyncFactory = Acct.GetAuthTokenAsync
-                });
+            // Fc = new FirebaseClient(Cnst.FirebaseDatabaseUrl, new FirebaseOptions()
+            //     {
+            //         AuthTokenAsyncFactory = Acct.GetAuthTokenAsync
+            //     });
 
             // Get all vehicles from Firebase
             var vehicleData = await Fc.Child("Vehicle").OnceAsync<Vehicle>();
-            
+
             foreach (var item in vehicleData)
             {
                 var vehicle = item.Object;
                 vehicle.Id = item.Key;
-                
+
                 try
                 {
                     vehicle.UpdateVehicleStatus();
@@ -163,14 +223,14 @@
                     vehicle.IsValid = false;
                     vehicle.ValidStatus = "Error";
                 }
-                
+
                 vehicles.Add(vehicle);
             }
 
             // Calculate statistics
             totalVehicles = vehicles.Count;
             vehiclesRequiringAttention = vehicles.Count(v => v.ValidStatus != "Good");
-            
+
             // Calculate user-specific statistics
             userVehicles = vehicles.Count(v => v.Driver == currentUserDisplayName || v.Uid == currentUserUid);
             userVehiclesRequiringAttention = vehicles.Count(v => 
@@ -188,5 +248,38 @@
         }
     }
 
-    
+    private async Task LoadTaskData()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+
+            var tasks = new List<Models.Todo>();
+            var taskData = await Fc.Child("TODO").OnceAsync<Models.Todo>();
+
+            foreach (var item in taskData)
+            {
+                var task = item.Object;
+                task.Id = item.Key;
+               
+                tasks.Add(task);
+            }
+
+            // Calculate statistics
+            totalTasks = tasks.Count;
+            userTasks = tasks.Count(t => t.Driver == currentUserDisplayName || t.Uid == currentUserUid);
+
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading task data: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
 }
