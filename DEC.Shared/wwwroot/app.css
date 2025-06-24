@@ -1,5 +1,11 @@
 @import '/_content/Microsoft.FluentUI.AspNetCore.Components/css/reboot.css';
 
+@font-face {
+    font-family: 'OPPOSansRegular';
+    src: url('/fonts/OPPOSansRegular.ttf') format('truetype');
+}
+
+
 body {
     /* --body-font: "Segoe UI Variable", "Segoe UI", sans-serif; */
     --body-font: "OPPOSansRegular", sans-serif; /* Fallback for browsers that don't support variable fonts */
